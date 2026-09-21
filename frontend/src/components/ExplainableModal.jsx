@@ -370,18 +370,6 @@ export default function ExplainableModal({ sessionId, currentStep = 0, onClose, 
 
       </div>
 
-      {/* Footer */}
-      <div className="p-3.5 border-t border-subtle bg-space-950/90 flex items-center justify-end text-xs font-mono text-slate-400">
-        {onClose && (
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
-            Закрыть
-          </button>
-        )}
-      </div>
-
     </div>
   );
 

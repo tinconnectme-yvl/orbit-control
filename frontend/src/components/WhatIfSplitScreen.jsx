@@ -9,7 +9,8 @@ export default function WhatIfSplitScreen({
   sessionId, 
   currentStep, 
   onClose, 
-  onSwitchSession 
+  onSwitchSession,
+  isInline = false
 }) {
   const [branchAGoal, setBranchAGoal] = useState('priority');
   const [branchAAlgo, setBranchAAlgo] = useState('vector_smart');
@@ -41,8 +42,8 @@ export default function WhatIfSplitScreen({
   };
 
   return (
-    <div className="app-modal-layer fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-      <div className="app-modal-card app-modal-card--wide compare-modal bg-space-900 border border-subtle w-full max-w-5xl rounded shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className={isInline ? 'compare-inline h-full min-h-0' : 'app-modal-layer fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4'}>
+      <div className={`app-modal-card app-modal-card--wide compare-modal bg-space-900 border border-subtle w-full rounded shadow-2xl overflow-hidden flex flex-col ${isInline ? 'h-full min-h-0 max-w-none' : 'max-w-5xl max-h-[92vh]'}`}>
         
         {/* Header */}
         <div className="p-4 border-b border-subtle flex items-center justify-between bg-space-950/80">
@@ -65,9 +66,9 @@ export default function WhatIfSplitScreen({
             </div>
           </div>
 
-          <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white">
+          {!isInline && <button onClick={onClose} className="p-1 rounded text-slate-400 hover:text-white">
             <X className="w-5 h-5" />
-          </button>
+          </button>}
         </div>
 
         {/* Setup Toolbar */}
@@ -279,16 +280,6 @@ export default function WhatIfSplitScreen({
               Нажмите «Запустить параллельное сравнение», чтобы рассчитать обе ветви из текущего состояния.
             </div>
           )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-subtle bg-space-950/80 flex items-center justify-end text-xs font-mono text-slate-400">
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white transition-colors"
-          >
-            Закрыть
-          </button>
         </div>
 
       </div>

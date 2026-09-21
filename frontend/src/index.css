@@ -319,6 +319,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .xai-job-card.is-injected { border-color: rgba(255,184,0,.7) !important; background: linear-gradient(135deg, rgba(55,37,4,.96), rgba(18,14,7,.96)) !important; box-shadow: inset 3px 0 #ffb800; }
 .xai-injected-badge { padding: 3px 6px; color: #171003; background: #ffb800; font: 900 9px/1 ui-monospace, monospace; letter-spacing: .08em; }
 .compare-modal { background: #050708 !important; }
+.compare-inline { height: 100%; min-height: 0; }
 .compare-verdict { display: grid; grid-template-columns: .8fr 1.4fr .8fr; border: 1px solid rgba(0,229,255,.32); background: linear-gradient(110deg, rgba(0,229,255,.07), rgba(183,255,42,.045)); }
 .compare-verdict > div { min-height: 74px; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--line); }
 .compare-verdict > div:last-child { border-right: 0; }
@@ -402,13 +403,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .mission-body { padding-bottom: calc(132px + var(--safe-bottom)); }
   .mission-stage { width: 100%; overscroll-behavior: none; }
   .mission-mobile-playback { position: absolute; left: 0; right: 0; bottom: calc(62px + var(--safe-bottom)); display: block; padding: 9px 10px; border-top: 1px solid var(--line); background: #06090a; z-index: 50; }
-  .mission-mobile-playback .playback-cluster { display: grid; grid-template-columns: 102px 1fr; gap: 7px 10px; }
-  .mission-mobile-playback .playback-time { grid-row: 1; }
-  .mission-mobile-playback .timeline-range { grid-row: 1; }
-  .mission-mobile-playback .playback-actions { grid-column: 1 / -1; justify-content: center; }
-  .mission-mobile-playback .playback-actions > button { min-width: 40px; height: 38px; }
-  .mission-mobile-playback .speed-toggle { margin-left: auto; }
-  .mission-mobile-playback .speed-toggle button { height: 32px; }
+  .mission-mobile-playback .playback-cluster.is-mobile { display: grid; grid-template-columns: 42px minmax(0, 1fr); grid-template-areas: "time time" "actions timeline"; gap: 4px 10px; }
+  .mission-mobile-playback .playback-cluster.is-mobile .playback-time { grid-area: time; flex-direction: row; align-items: center; justify-content: space-between; }
+  .mission-mobile-playback .playback-cluster.is-mobile .playback-time small { margin-top: 0; }
+  .mission-mobile-playback .playback-cluster.is-mobile .timeline-range { grid-area: timeline; height: 38px; margin: 0; }
+  .mission-mobile-playback .playback-cluster.is-mobile .playback-actions { grid-area: actions; }
+  .mission-mobile-playback .playback-cluster.is-mobile .playback-actions > button { width: 42px; min-width: 42px; height: 38px; }
   .mission-mobile-nav { position: absolute; left: 0; right: 0; bottom: 0; min-height: calc(62px + var(--safe-bottom)); padding: 5px 6px var(--safe-bottom); display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); background: #050708; z-index: 55; }
   .mission-mobile-nav button { min-height: 54px; border: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--muted-2); background: transparent; font-size: 9px; font-weight: 700; cursor: pointer; }
   .mission-mobile-nav button.is-active { color: var(--acid); }
@@ -428,6 +428,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .satellite-strip__readings span:last-child { display: none; }
   .satellite-strip > button { height: 36px; padding-inline: 10px; }
   .secondary-workspace { padding: 8px; overflow: auto; }
+  .secondary-workspace--compare { overflow: hidden; padding: 0; }
+  .compare-inline .compare-modal { max-height: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none; }
   .satellite-inspector { top: auto !important; left: 8px; right: 8px !important; bottom: 8px; width: auto; max-width: none; max-height: calc(100% - 16px); border-radius: 4px; }
   .satellite-inspector__body { max-height: min(62dvh, 520px) !important; }
   .app-modal-layer { align-items: flex-end !important; padding: 0 !important; }
@@ -477,8 +479,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .hero-proof span { max-width: 76px; }
   .launch-panel__settings span { display: none; }
   .scenario-select-wrap select { font-size: 14px; }
-  .mission-mobile-playback .speed-toggle { display: none; }
-  .mission-mobile-playback .playback-actions { justify-content: space-between; }
   .satellite-strip__readings { display: none; }
   .satellite-strip { grid-template-columns: 34px 1fr auto; }
 }

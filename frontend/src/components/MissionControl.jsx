@@ -27,10 +27,10 @@ const ACTION_LABELS = {
 function CompactControls({
   isPlaying, onToggle, onStep, onStep10, onEnd, onReset,
   simTime, horizonSec, onSeek, formatTime, currentStep, totalSteps,
-  playSpeed, onSpeed
+  playSpeed, onSpeed, mobile = false
 }) {
   return (
-    <div className="playback-cluster">
+    <div className={`playback-cluster ${mobile ? 'is-mobile' : ''}`}>
       <div className="playback-time">
         <span>T+{formatTime(simTime)}</span>
         <small>{String(currentStep + 1).padStart(3, '0')} / {totalSteps}</small>
@@ -49,15 +49,17 @@ function CompactControls({
         <button type="button" className="playback-primary" onClick={onToggle} aria-label={isPlaying ? 'Пауза' : 'Запустить расчёт'}>
           {isPlaying ? <Pause size={17} /> : <Play size={17} />}
         </button>
-        <button type="button" onClick={onStep} aria-label="Следующий шаг"><SkipForward size={16} /></button>
-        <button type="button" onClick={onStep10} aria-label="Перейти на десять шагов">+10</button>
-        <button type="button" onClick={onEnd} aria-label="Перейти в конец"><FastForward size={16} /></button>
-        <button type="button" onClick={onReset} aria-label="Сбросить расчёт"><RotateCcw size={15} /></button>
-        <div className="speed-toggle" aria-label="Скорость воспроизведения">
-          {['0.5x', '1x', '2x'].map((speed) => (
-            <button key={speed} type="button" onClick={() => onSpeed(speed)} className={playSpeed === speed ? 'is-active' : ''}>{speed}</button>
-          ))}
-        </div>
+        {!mobile && <>
+          <button type="button" onClick={onStep} aria-label="Следующий шаг"><SkipForward size={16} /></button>
+          <button type="button" onClick={onStep10} aria-label="Перейти на десять шагов">+10</button>
+          <button type="button" onClick={onEnd} aria-label="Перейти в конец"><FastForward size={16} /></button>
+          <button type="button" onClick={onReset} aria-label="Сбросить расчёт"><RotateCcw size={15} /></button>
+          <div className="speed-toggle" aria-label="Скорость воспроизведения">
+            {['0.5x', '1x', '2x'].map((speed) => (
+              <button key={speed} type="button" onClick={() => onSpeed(speed)} className={playSpeed === speed ? 'is-active' : ''}>{speed}</button>
+            ))}
+          </div>
+        </>}
       </div>
     </div>
   );
@@ -347,7 +349,7 @@ export default function MissionControl({ sessionId, onBackToHero }) {
                 satellites={satellites}
                 simTime={simTime}
                 isPlaying={isPlaying}
-                onSelectSatellite={(id) => { setSelectedSatelliteId(id); setShowInspector(true); }}
+                onSelectSatellite={(id) => { setSelectedSatelliteId(id); setShowInspector(false); }}
                 selectedSatelliteId={selectedSatelliteId}
                 className="orbit-workspace__viewer"
               />
@@ -430,15 +432,26 @@ export default function MissionControl({ sessionId, onBackToHero }) {
           {activeNav === 'tasks' && (
             <section className="secondary-workspace"><ExplainableModal sessionId={workingSessionId} currentStep={currentStep} isInline onClose={() => setActiveNav('globe')} /></section>
           )}
+
+          {activeNav === 'compare' && (
+            <section className="secondary-workspace secondary-workspace--compare">
+              <WhatIfSplitScreen
+                sessionId={workingSessionId}
+                currentStep={currentStep}
+                isInline
+                onSwitchSession={(id) => { setWorkingSessionId(id); setActiveNav('globe'); seekTo(0); loadTimeline(id); }}
+              />
+            </section>
+          )}
         </main>
       </div>
 
-      <div className="mission-mobile-playback"><CompactControls {...controlsProps} /></div>
+      <div className="mission-mobile-playback"><CompactControls {...controlsProps} mobile /></div>
       <nav className="mission-mobile-nav" aria-label="Разделы ситуационного центра">
         {navigation.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" className={activeNav === id ? 'is-active' : ''} onClick={() => setActiveNav(id)}><Icon size={19} /><span>{label}</span></button>
         ))}
-        <button type="button" onClick={() => setShowWhatIf(true)}><GitFork size={19} /><span>Сравнить</span></button>
+        <button type="button" className={activeNav === 'compare' ? 'is-active' : ''} onClick={() => setActiveNav('compare')}><GitFork size={19} /><span>Сравнить</span></button>
       </nav>
 
       {showChaosMonkey && <ChaosMonkeyModal sessionId={workingSessionId} currentStep={currentStep} totalSteps={totalSteps} satellites={satellites} onClose={() => setShowChaosMonkey(false)} onEventApplied={(event) => { setEventNotice(event); loadTimeline(workingSessionId); }} />}

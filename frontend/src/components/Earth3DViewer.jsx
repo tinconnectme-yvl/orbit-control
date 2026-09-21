@@ -130,15 +130,16 @@ export default function Earth3DViewer({
   const [globeCenterLon, setGlobeCenterLon] = useState(50);
   const [globeZoom, setGlobeZoom] = useState(1.0);
   const [isRotating, setIsRotating] = useState(autoRotate);
-  const [mobileRotationLocked, setMobileRotationLocked] = useState(false);
 
   const pulsePhaseRef = useRef(0);
+  const projectedSatsRef = useRef([]);
 
   // Mouse interaction state
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const hasDraggedRef = useRef(false);
   const lastMouseRef = useRef({ x: 0, y: 0 });
+  const activePointerRef = useRef(null);
 
   // Hover detection state
   const hoveredSatRef = useRef(null);
@@ -162,15 +163,7 @@ export default function Earth3DViewer({
     });
   }, []);
 
-  useEffect(() => {
-    const query = window.matchMedia('(max-width: 860px), (pointer: coarse)');
-    const update = () => setMobileRotationLocked(query.matches);
-    update();
-    query.addEventListener?.('change', update);
-    return () => query.removeEventListener?.('change', update);
-  }, []);
-
-  const canRotate = interactive && !mobileRotationLocked;
+  const canRotate = interactive;
 
   // Main Canvas Render Loop (60 FPS)
   useEffect(() => {
@@ -345,7 +338,7 @@ export default function Earth3DViewer({
       groundTargets.forEach(tgt => {
         const pt = geoToCanvas(tgt.lat, tgt.lon, 0, w, h, cx, cy, radius);
         if (tgt.type === 'ground_station') {
-          gsCanvasPos = pt;
+          gsCanvasPos = { ...pt, lat: tgt.lat, lon: tgt.lon };
         }
         if (pt.visible) {
           if (tgt.type === 'ground_station') {
@@ -417,11 +410,14 @@ export default function Earth3DViewer({
             x: pt.x,
             y: pt.y,
             z: pt.z,
+            lat: satLat,
+            lon: satLon,
             isHovered: hoveredSatRef.current?.sat?.id === sat.id,
             isSelected: selectedSatelliteId === sat.id
           });
         }
       });
+      projectedSatsRef.current = projectedSats;
 
       // 6. Hit Detection for Hovered Satellite
       let nearest = null;
@@ -447,48 +443,54 @@ export default function Earth3DViewer({
         return a.z - b.z;
       });
 
-      // 8. Draw Laser Beams (Downlink to Vostochny with Arched Bezier trajectory)
+      // 8. Draw downlinks with the exact same 3D occlusion rule as orbit tracks.
       projectedSats.forEach(item => {
         const act = item.sat.current_action || '';
         if (act.includes('downlink') && gsCanvasPos) {
           ctx.save();
-          const mx = (item.x + gsCanvasPos.x) / 2;
-          const my = (item.y + gsCanvasPos.y) / 2;
-          const chordLen = Math.hypot(gsCanvasPos.x - item.x, gsCanvasPos.y - item.y);
-          let outwardX = mx - cx;
-          let outwardY = my - cy;
-          let outwardLen = Math.hypot(outwardX, outwardY);
-          if (outwardLen < radius * 0.08) {
-            outwardX = item.x - cx;
-            outwardY = item.y - cy;
-            outwardLen = Math.hypot(outwardX, outwardY) || 1;
-          }
-          const bow = Math.min(radius * 0.22, Math.max(radius * 0.035, chordLen * 0.11));
-          const ctrlX = mx + (outwardX / outwardLen) * bow;
-          const ctrlY = my + (outwardY / outwardLen) * bow;
-          const pointAt = (t) => {
-            const u = 1 - t;
-            return {
-              x: u * u * item.x + 2 * u * t * ctrlX + t * t * gsCanvasPos.x,
-              y: u * u * item.y + 2 * u * t * ctrlY + t * t * gsCanvasPos.y
-            };
+          const unitAt = (lat, lon) => {
+            const phi = lat * Math.PI / 180;
+            const lambda = lon * Math.PI / 180;
+            return [Math.cos(phi) * Math.cos(lambda), Math.cos(phi) * Math.sin(lambda), Math.sin(phi)];
           };
-          let previous = pointAt(0);
-          const linkSegments = 30;
-          for (let segment = 1; segment <= linkSegments; segment++) {
-            const point = pointAt(segment / linkSegments);
-            const midX = (previous.x + point.x) / 2;
-            const midY = (previous.y + point.y) / 2;
-            const behindGlobe = Math.hypot(midX - cx, midY - cy) < radius * .995;
-            ctx.beginPath();
-            ctx.moveTo(previous.x, previous.y);
-            ctx.lineTo(point.x, point.y);
-            ctx.strokeStyle = behindGlobe ? 'rgba(0, 229, 255, 0.16)' : 'rgba(0, 229, 255, 0.95)';
-            ctx.lineWidth = (behindGlobe ? 1.15 : 2.15) * dpr;
-            ctx.setLineDash(behindGlobe ? [3 * dpr, 4 * dpr] : []);
-            ctx.shadowColor = '#00e5ff';
-            ctx.shadowBlur = behindGlobe ? 0 : 7 * dpr;
-            ctx.stroke();
+          const satUnit = unitAt(item.lat, item.lon);
+          const groundUnit = unitAt(gsCanvasPos.lat, gsCanvasPos.lon);
+          const dot = Math.max(-1, Math.min(1, satUnit[0] * groundUnit[0] + satUnit[1] * groundUnit[1] + satUnit[2] * groundUnit[2]));
+          const omega = Math.acos(dot);
+          const sinOmega = Math.sin(omega);
+          const directionAt = (t) => {
+            const a = sinOmega > 0.0001 ? Math.sin((1 - t) * omega) / sinOmega : 1 - t;
+            const b = sinOmega > 0.0001 ? Math.sin(t * omega) / sinOmega : t;
+            const x = a * satUnit[0] + b * groundUnit[0];
+            const y = a * satUnit[1] + b * groundUnit[1];
+            const z = a * satUnit[2] + b * groundUnit[2];
+            const length = Math.hypot(x, y, z) || 1;
+            return [x / length, y / length, z / length];
+          };
+
+          let previous = null;
+          const linkSegments = 48;
+          for (let segment = 0; segment <= linkSegments; segment++) {
+            const t = segment / linkSegments;
+            const [x, y, z] = directionAt(t);
+            const lat = Math.asin(Math.max(-1, Math.min(1, z))) * 180 / Math.PI;
+            const lon = Math.atan2(y, x) * 180 / Math.PI;
+            const altitude = ORBIT_ALT_KM * (1 - t) + Math.sin(Math.PI * t) * 120;
+            const point = geoToCanvas(lat, lon, altitude, w, h, cx, cy, radius);
+            if (!point.visible) {
+              previous = null;
+              continue;
+            }
+            if (previous) {
+              ctx.beginPath();
+              ctx.moveTo(previous.x, previous.y);
+              ctx.lineTo(point.x, point.y);
+              ctx.strokeStyle = 'rgba(0, 229, 255, 0.98)';
+              ctx.lineWidth = 2.35 * dpr;
+              ctx.shadowColor = '#00e5ff';
+              ctx.shadowBlur = 7 * dpr;
+              ctx.stroke();
+            }
             previous = point;
           }
           ctx.restore();
@@ -571,25 +573,29 @@ export default function Earth3DViewer({
     };
   }, [globeCenterLat, globeCenterLon, globeZoom, isRotating, isPlaying, simTime, satellites, selectedSatelliteId]);
 
-  // Mouse drag handlers
-  const handleMouseDown = (e) => {
+  const pointerPosition = (e) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.2);
+    return rect ? { x: (e.clientX - rect.left) * dpr, y: (e.clientY - rect.top) * dpr, dpr } : null;
+  };
+
+  // Pointer handlers support both mouse and direct touch manipulation.
+  const handlePointerDown = (e) => {
     if (!canRotate) return;
+    activePointerRef.current = e.pointerId;
+    e.currentTarget.setPointerCapture?.(e.pointerId);
     isDraggingRef.current = true;
     hasDraggedRef.current = false;
     dragStartRef.current = { x: e.clientX, y: e.clientY };
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseMove = (e) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.2);
-    mousePosRef.current = {
-      x: (e.clientX - rect.left) * dpr,
-      y: (e.clientY - rect.top) * dpr
-    };
+  const handlePointerMove = (e) => {
+    const position = pointerPosition(e);
+    if (!position) return;
+    mousePosRef.current = { x: position.x, y: position.y };
 
-    if (!isDraggingRef.current || !canRotate) return;
+    if (!isDraggingRef.current || !canRotate || activePointerRef.current !== e.pointerId) return;
 
     const dx = e.clientX - lastMouseRef.current.x;
     const dy = e.clientY - lastMouseRef.current.y;
@@ -604,12 +610,25 @@ export default function Earth3DViewer({
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
   };
 
-  const handleMouseUp = () => {
-    if (!isDraggingRef.current) return;
+  const handlePointerUp = (e) => {
+    if (!isDraggingRef.current || activePointerRef.current !== e.pointerId) return;
     isDraggingRef.current = false;
-    if (!hasDraggedRef.current && hoveredSatRef.current) {
-      onSelectSatellite?.(hoveredSatRef.current.sat.id);
+    activePointerRef.current = null;
+    const position = pointerPosition(e);
+    if (!hasDraggedRef.current && position) {
+      const hitRadius = (e.pointerType === 'touch' ? 28 : 15) * position.dpr;
+      const nearest = projectedSatsRef.current.reduce((best, item) => {
+        const distance = Math.hypot(position.x - item.x, position.y - item.y);
+        return distance < best.distance ? { item, distance } : best;
+      }, { item: null, distance: hitRadius });
+      if (nearest.item) onSelectSatellite?.(nearest.item.sat.id);
     }
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+
+  const handlePointerCancel = () => {
+    isDraggingRef.current = false;
+    activePointerRef.current = null;
   };
 
   const handleWheel = (e) => {
@@ -629,9 +648,10 @@ export default function Earth3DViewer({
     <div 
       ref={containerRef}
       className={`relative select-none overflow-hidden bg-space-950 ${className}`}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
       onWheel={handleWheel}
       style={{ touchAction: 'none' }}
     >
@@ -639,7 +659,7 @@ export default function Earth3DViewer({
 
       {/* Floating HUD controls */}
       <div className="earth-controls absolute top-3 right-3 flex flex-col gap-1.5 z-10">
-        <button 
+        <button
           onClick={resetCamera}
           title="Сброс камеры (ЦУП Восточный)"
           className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-cyan-400 border border-slate-700/60 transition"
@@ -660,13 +680,13 @@ export default function Earth3DViewer({
         >
           <ZoomOut className="w-4 h-4" />
         </button>
-        {!mobileRotationLocked && <button 
+        <button
           onClick={() => setIsRotating(r => !r)}
           title={isRotating ? "Остановить авто-вращение" : "Включить авто-вращение"}
           className={`p-1.5 rounded-md border transition ${isRotating ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50' : 'bg-space-900/80 text-slate-400 border-slate-700/60'}`}
         >
           <RotateCw className="w-4 h-4" />
-        </button>}
+        </button>
       </div>
 
       {/* Mini Legend Overlay */}
