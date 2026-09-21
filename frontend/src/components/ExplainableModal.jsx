@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   X, HelpCircle, CheckCircle2, AlertTriangle, AlertOctagon, 
   Clock, Search, ShieldCheck, Filter, ArrowRight, DollarSign,
@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { getDiagnostics } from '../api/client';
 
-export default function ExplainableModal({ sessionId, onClose, isInline = false }) {
+export default function ExplainableModal({ sessionId, currentStep = 0, onClose, isInline = false }) {
   const [diagnosticsData, setDiagnosticsData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('all'); // all, unfeasible, missed, completed, in_progress
@@ -17,12 +17,12 @@ export default function ExplainableModal({ sessionId, onClose, isInline = false 
   useEffect(() => {
     if (!sessionId) return;
     setLoading(true);
-    getDiagnostics(sessionId)
+    getDiagnostics(sessionId, currentStep)
       .then(res => {
         setDiagnosticsData(res);
         if (res.diagnostics.length) {
           const firstProblem = res.diagnostics.find(d => d.status === 'unfeasible' || d.status === 'missed') || res.diagnostics[0];
-          setSelectedJob(firstProblem);
+          setSelectedJob((current) => res.diagnostics.find((job) => job.job_id === current?.job_id) || firstProblem);
         }
         setLoading(false);
       })
@@ -30,12 +30,12 @@ export default function ExplainableModal({ sessionId, onClose, isInline = false 
         console.error(err);
         setLoading(false);
       });
-  }, [sessionId]);
+  }, [sessionId, currentStep]);
 
   const list = diagnosticsData?.diagnostics || [];
   const counts = diagnosticsData?.counts || {};
 
-  const filteredJobs = list.filter(j => {
+  const filteredJobs = useMemo(() => list.filter(j => {
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       const matchId = j.job_id.toLowerCase().includes(q);
@@ -46,7 +46,12 @@ export default function ExplainableModal({ sessionId, onClose, isInline = false 
     if (filterStatus !== 'all' && j.status !== filterStatus) return false;
     if (filterPriority !== 'all' && j.priority !== parseInt(filterPriority, 10)) return false;
     return true;
-  });
+  }).sort((a, b) => {
+    if (Boolean(a.is_injected) !== Boolean(b.is_injected)) return a.is_injected ? -1 : 1;
+    const order = { in_progress: 0, active_waiting: 1, pending: 2, completed: 3, missed: 4, unfeasible: 5, future: 6 };
+    return (order[a.status] ?? 9) - (order[b.status] ?? 9) || b.priority - a.priority || a.deadline_step - b.deadline_step;
+  }), [list, searchQuery, filterStatus, filterPriority]);
+  const visibleJobs = filteredJobs.slice(0, searchQuery ? 240 : 160);
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -209,7 +214,7 @@ export default function ExplainableModal({ sessionId, onClose, isInline = false 
               Заданий по выбранным фильтрам не найдено.
             </div>
           ) : (
-            filteredJobs.map((job) => {
+            visibleJobs.map((job) => {
               const isSelected = selectedJob?.job_id === job.job_id;
               const pct = job.work_steps > 0 ? Math.min(100, Math.round((job.executed_steps / job.work_steps) * 100)) : 0;
 
@@ -217,7 +222,7 @@ export default function ExplainableModal({ sessionId, onClose, isInline = false 
                 <div
                   key={job.job_id}
                   onClick={() => setSelectedJob(job)}
-                  className={`p-3 rounded-xl border cursor-pointer font-mono text-xs transition-all ${
+                  className={`xai-job-card p-3 rounded-xl border cursor-pointer font-mono text-xs transition-all ${job.is_injected ? 'is-injected ' : ''}${
                     isSelected 
                       ? 'bg-space-850 border-orbit-purple text-white shadow-xl ring-1 ring-orbit-purple/50' 
                       : 'bg-space-900/80 border-subtle text-slate-300 hover:border-white/30 hover:bg-space-850'
@@ -226,6 +231,7 @@ export default function ExplainableModal({ sessionId, onClose, isInline = false 
                   <div className="flex items-center justify-between mb-1.5">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-sm text-white">{job.job_id}</span>
+                      {job.is_injected && <span className="xai-injected-badge">ВБРОС</span>}
                       {getPriorityBadge(job.priority)}
                     </div>
                     {getStatusBadge(job.status)}
@@ -365,8 +371,7 @@ export default function ExplainableModal({ sessionId, onClose, isInline = false 
       </div>
 
       {/* Footer */}
-      <div className="p-3.5 border-t border-subtle bg-space-950/90 flex items-center justify-between text-xs font-mono text-slate-400">
-        <span>Математический валидатор проверен по физической модели resource_env.py</span>
+      <div className="p-3.5 border-t border-subtle bg-space-950/90 flex items-center justify-end text-xs font-mono text-slate-400">
         {onClose && (
           <button
             onClick={onClose}

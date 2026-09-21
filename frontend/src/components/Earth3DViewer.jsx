@@ -130,6 +130,7 @@ export default function Earth3DViewer({
   const [globeCenterLon, setGlobeCenterLon] = useState(50);
   const [globeZoom, setGlobeZoom] = useState(1.0);
   const [isRotating, setIsRotating] = useState(autoRotate);
+  const [mobileRotationLocked, setMobileRotationLocked] = useState(false);
 
   const pulsePhaseRef = useRef(0);
 
@@ -160,6 +161,16 @@ export default function Earth3DViewer({
       // Force repaint when texture loads
     });
   }, []);
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 860px), (pointer: coarse)');
+    const update = () => setMobileRotationLocked(query.matches);
+    update();
+    query.addEventListener?.('change', update);
+    return () => query.removeEventListener?.('change', update);
+  }, []);
+
+  const canRotate = interactive && !mobileRotationLocked;
 
   // Main Canvas Render Loop (60 FPS)
   useEffect(() => {
@@ -237,7 +248,7 @@ export default function Earth3DViewer({
       const cssW = Math.floor(rect?.width || 800);
       const cssH = Math.floor(rect?.height || 500);
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.2);
       const w = Math.round(cssW * dpr);
       const h = Math.round(cssH * dpr);
 
@@ -252,7 +263,7 @@ export default function Earth3DViewer({
 
       // Starfield background from KosmoHack
       let seed = 42;
-      for (let i = 0; i < 150; i++) {
+      for (let i = 0; i < 90; i++) {
         seed = (seed * 16807) % 2147483647;
         const sx = (seed % 10000) / 10000 * w;
         seed = (seed * 16807) % 2147483647;
@@ -292,7 +303,7 @@ export default function Earth3DViewer({
 
         ctx.beginPath();
         let open = false;
-        const trackSteps = 96;
+        const trackSteps = 64;
         for (let s = 0; s <= trackSteps; s++) {
           const u = (s / trackSteps) * Math.PI * 2;
           const cu = Math.cos(u);
@@ -440,47 +451,45 @@ export default function Earth3DViewer({
       projectedSats.forEach(item => {
         const act = item.sat.current_action || '';
         if (act.includes('downlink') && gsCanvasPos) {
-          const isFaint = (item.z < 0 || gsCanvasPos.z < 0);
-
           ctx.save();
-          ctx.beginPath();
-          ctx.moveTo(item.x, item.y);
-
-          // Arced Bezier curve bowing out into orbital space above Earth
           const mx = (item.x + gsCanvasPos.x) / 2;
           const my = (item.y + gsCanvasPos.y) / 2;
-          const vx = mx - cx;
-          const vy = my - cy;
-          const dist = Math.hypot(vx, vy) || 1;
           const chordLen = Math.hypot(gsCanvasPos.x - item.x, gsCanvasPos.y - item.y);
-
-          // Bow outward radially from Earth center so it never intersects the planetary sphere
-          const targetDist = Math.max(dist + chordLen * 0.18, radius * 1.08);
-          const ctrlX = cx + (vx / dist) * targetDist;
-          const ctrlY = cy + (vy / dist) * targetDist;
-
-          ctx.quadraticCurveTo(ctrlX, ctrlY, gsCanvasPos.x, gsCanvasPos.y);
-
-          if (isFaint) {
-            // Faint translucent link through the globe
-            ctx.strokeStyle = 'rgba(0, 229, 255, 0.22)';
-            ctx.lineWidth = 1.2 * dpr;
-            ctx.setLineDash([4 * dpr, 4 * dpr]);
-            ctx.shadowBlur = 0;
-            ctx.stroke();
-          } else {
-            // Full glowing tactical laser
-            ctx.strokeStyle = '#00e5ff';
-            ctx.lineWidth = 2.5 * dpr;
+          let outwardX = mx - cx;
+          let outwardY = my - cy;
+          let outwardLen = Math.hypot(outwardX, outwardY);
+          if (outwardLen < radius * 0.08) {
+            outwardX = item.x - cx;
+            outwardY = item.y - cy;
+            outwardLen = Math.hypot(outwardX, outwardY) || 1;
+          }
+          const bow = Math.min(radius * 0.22, Math.max(radius * 0.035, chordLen * 0.11));
+          const ctrlX = mx + (outwardX / outwardLen) * bow;
+          const ctrlY = my + (outwardY / outwardLen) * bow;
+          const pointAt = (t) => {
+            const u = 1 - t;
+            return {
+              x: u * u * item.x + 2 * u * t * ctrlX + t * t * gsCanvasPos.x,
+              y: u * u * item.y + 2 * u * t * ctrlY + t * t * gsCanvasPos.y
+            };
+          };
+          let previous = pointAt(0);
+          const linkSegments = 30;
+          for (let segment = 1; segment <= linkSegments; segment++) {
+            const point = pointAt(segment / linkSegments);
+            const midX = (previous.x + point.x) / 2;
+            const midY = (previous.y + point.y) / 2;
+            const behindGlobe = Math.hypot(midX - cx, midY - cy) < radius * .995;
+            ctx.beginPath();
+            ctx.moveTo(previous.x, previous.y);
+            ctx.lineTo(point.x, point.y);
+            ctx.strokeStyle = behindGlobe ? 'rgba(0, 229, 255, 0.16)' : 'rgba(0, 229, 255, 0.95)';
+            ctx.lineWidth = (behindGlobe ? 1.15 : 2.15) * dpr;
+            ctx.setLineDash(behindGlobe ? [3 * dpr, 4 * dpr] : []);
             ctx.shadowColor = '#00e5ff';
-            ctx.shadowBlur = 12 * dpr;
+            ctx.shadowBlur = behindGlobe ? 0 : 7 * dpr;
             ctx.stroke();
-
-            // Inner white core
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.0 * dpr;
-            ctx.shadowBlur = 0;
-            ctx.stroke();
+            previous = point;
           }
           ctx.restore();
         }
@@ -546,8 +555,12 @@ export default function Earth3DViewer({
       }
     };
 
-    const loop = () => {
-      render();
+    let lastFrame = 0;
+    const loop = (now) => {
+      if (now - lastFrame >= 1000 / 30) {
+        render();
+        lastFrame = now;
+      }
       animId = requestAnimationFrame(loop);
     };
 
@@ -560,7 +573,7 @@ export default function Earth3DViewer({
 
   // Mouse drag handlers
   const handleMouseDown = (e) => {
-    if (!interactive) return;
+    if (!canRotate) return;
     isDraggingRef.current = true;
     hasDraggedRef.current = false;
     dragStartRef.current = { x: e.clientX, y: e.clientY };
@@ -570,13 +583,13 @@ export default function Earth3DViewer({
   const handleMouseMove = (e) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    const dpr = Math.min(window.devicePixelRatio || 1, 1.2);
     mousePosRef.current = {
       x: (e.clientX - rect.left) * dpr,
       y: (e.clientY - rect.top) * dpr
     };
 
-    if (!isDraggingRef.current) return;
+    if (!isDraggingRef.current || !canRotate) return;
 
     const dx = e.clientX - lastMouseRef.current.x;
     const dy = e.clientY - lastMouseRef.current.y;
@@ -585,7 +598,7 @@ export default function Earth3DViewer({
       hasDraggedRef.current = true;
     }
 
-    setGlobeCenterLon(prev => (prev + dx * 0.45) % 360);
+    setGlobeCenterLon(prev => (prev - dx * 0.45) % 360);
     setGlobeCenterLat(prev => Math.max(-85, Math.min(85, prev + dy * 0.45)));
 
     lastMouseRef.current = { x: e.clientX, y: e.clientY };
@@ -620,6 +633,7 @@ export default function Earth3DViewer({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onWheel={handleWheel}
+      style={{ touchAction: 'none' }}
     >
       <canvas ref={canvasRef} className="block w-full h-full" />
 
@@ -646,13 +660,13 @@ export default function Earth3DViewer({
         >
           <ZoomOut className="w-4 h-4" />
         </button>
-        <button 
+        {!mobileRotationLocked && <button 
           onClick={() => setIsRotating(r => !r)}
           title={isRotating ? "Остановить авто-вращение" : "Включить авто-вращение"}
           className={`p-1.5 rounded-md border transition ${isRotating ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50' : 'bg-space-900/80 text-slate-400 border-slate-700/60'}`}
         >
           <RotateCw className="w-4 h-4" />
-        </button>
+        </button>}
       </div>
 
       {/* Mini Legend Overlay */}

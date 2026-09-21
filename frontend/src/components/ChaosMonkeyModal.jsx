@@ -32,12 +32,13 @@ export default function ChaosMonkeyModal({
     try {
       const res = await applyEvent(sessionId, {
         id: `OUTAGE-${selectedSat}-${currentStep}`,
+        at_step: currentStep,
         type: 'satellite_outage',
         satellite_ids: [selectedSat],
         end_step: Math.min(totalSteps, currentStep + parseInt(outageDuration))
       });
       setMessage({ type: 'success', text: `🚨 Спутник ${selectedSat} отключен на ${outageDuration} шагов (до шага ${currentStep + parseInt(outageDuration)}).` });
-      if (onEventApplied) onEventApplied();
+      if (onEventApplied) onEventApplied(res.event_applied);
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -52,12 +53,13 @@ export default function ChaosMonkeyModal({
       const allSats = satellites.map(s => s.id);
       const res = await applyEvent(sessionId, {
         id: `CLOSE-DL-${currentStep}`,
+        at_step: currentStep,
         type: 'close_downlink',
         satellite_ids: allSats,
         end_step: Math.min(totalSteps, currentStep + parseInt(downlinkDuration))
       });
       setMessage({ type: 'success', text: `📡 Наземная станция закрыта для всех КА на ${downlinkDuration} шагов.` });
-      if (onEventApplied) onEventApplied();
+      if (onEventApplied) onEventApplied(res.event_applied);
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -72,6 +74,7 @@ export default function ChaosMonkeyModal({
       const targetSats = satellites.slice(0, 3).map(s => s.id);
       const res = await applyEvent(sessionId, {
         id: `URG-JOBS-${currentStep}`,
+        at_step: currentStep,
         type: 'add_jobs',
         jobs: [
           {
@@ -97,7 +100,7 @@ export default function ChaosMonkeyModal({
         ]
       });
       setMessage({ type: 'success', text: `⚡ Добавлено 2 экстренных задания высшего приоритета P3 ($300 USD)!` });
-      if (onEventApplied) onEventApplied();
+      if (onEventApplied) onEventApplied(res.event_applied);
     } catch (err) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -110,9 +113,9 @@ export default function ChaosMonkeyModal({
     setMessage(null);
     try {
       const parsed = JSON.parse(rawJson);
-      await applyEvent(sessionId, parsed);
+      const res = await applyEvent(sessionId, { ...parsed, at_step: currentStep });
       setMessage({ type: 'success', text: `Событие из JSON успешно применено на шаге ${currentStep}!` });
-      if (onEventApplied) onEventApplied();
+      if (onEventApplied) onEventApplied(res.event_applied);
     } catch (err) {
       setMessage({ type: 'error', text: `Ошибка: ${err.message}` });
     } finally {

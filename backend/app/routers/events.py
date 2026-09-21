@@ -9,7 +9,8 @@ from fastapi import APIRouter, HTTPException
 
 from ..config import EXAMPLES_DIR
 from ..models.schemas import DynamicEventRequest
-from .session import get_session
+from .session import get_session, PLANNERS
+from ..planners.dispatcher import get_planner
 
 router = APIRouter(prefix="/api/events", tags=["Events & Chaos Monkey"])
 
@@ -28,6 +29,19 @@ def apply_event(session_id: str, req: DynamicEventRequest):
     Supported types: 'add_jobs', 'satellite_outage', 'close_downlink'.
     """
     session = get_session(session_id)
+    target_step = session.current_step if req.at_step is None else req.at_step
+    if target_step < session.current_step:
+        raise HTTPException(status_code=400, detail=f"Нельзя применить событие в прошлом: расчёт уже на шаге {session.current_step}")
+    if target_step >= session.total_steps:
+        raise HTTPException(status_code=400, detail="Событие должно произойти до конца смены")
+
+    planner = PLANNERS.get(session_id)
+    if not planner:
+        planner = get_planner(session.algorithm, session.goal)
+        PLANNERS[session_id] = planner
+    while session.current_step < target_step:
+        session.advance(planner.plan_step(session, session.current_step))
+
     k = session.current_step
     
     event_id = req.id or f"EV-{uuid.uuid4().hex[:6].upper()}"

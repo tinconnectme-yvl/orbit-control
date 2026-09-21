@@ -14,13 +14,15 @@ export default function WhatIfSplitScreen({
   const [branchAGoal, setBranchAGoal] = useState('priority');
   const [branchAAlgo, setBranchAAlgo] = useState('vector_smart');
   const [branchBGoal, setBranchBGoal] = useState('revenue');
-  const [branchBAlgo, setBranchBAlgo] = useState('vector_smart');
+  const [branchBAlgo, setBranchBAlgo] = useState('baseline');
   
   const [comparison, setComparison] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const handleRunComparison = async () => {
     setLoading(true);
+    setError('');
     try {
       const res = await compareBranches({
         base_session_id: sessionId,
@@ -32,7 +34,7 @@ export default function WhatIfSplitScreen({
       });
       setComparison(res);
     } catch (err) {
-      alert(`Ошибка сравнения: ${err.message}`);
+      setError(`Не удалось сравнить ветви: ${err.message}`);
     } finally {
       setLoading(false);
     }
@@ -40,7 +42,7 @@ export default function WhatIfSplitScreen({
 
   return (
     <div className="app-modal-layer fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4">
-      <div className="app-modal-card app-modal-card--wide bg-space-900 border border-subtle w-full max-w-5xl rounded shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+      <div className="app-modal-card app-modal-card--wide compare-modal bg-space-900 border border-subtle w-full max-w-5xl rounded shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         
         {/* Header */}
         <div className="p-4 border-b border-subtle flex items-center justify-between bg-space-950/80">
@@ -69,13 +71,13 @@ export default function WhatIfSplitScreen({
         </div>
 
         {/* Setup Toolbar */}
-        <div className="p-4 border-b border-subtle bg-space-950/40 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="compare-setup p-4 border-b border-subtle bg-space-950/40 grid grid-cols-1 md:grid-cols-2 gap-4">
           
           {/* Branch A Config */}
-          <div className="p-3 bg-space-850 border border-subtle rounded flex items-center justify-between">
+          <div className="compare-branch-config p-3 bg-space-850 border border-subtle rounded flex items-center justify-between">
             <div className="text-xs font-mono">
               <span className="font-bold text-orbit-emerald block mb-1">ВЕТВЬ А (Слева)</span>
-              <div className="flex gap-2 text-slate-300">
+              <div className="compare-selects flex gap-2 text-slate-300">
                 <select
                   value={branchAGoal}
                   onChange={(e) => setBranchAGoal(e.target.value)}
@@ -97,10 +99,10 @@ export default function WhatIfSplitScreen({
           </div>
 
           {/* Branch B Config */}
-          <div className="p-3 bg-space-850 border border-subtle rounded flex items-center justify-between">
+          <div className="compare-branch-config p-3 bg-space-850 border border-subtle rounded flex items-center justify-between">
             <div className="text-xs font-mono">
               <span className="font-bold text-orbit-amber block mb-1">ВЕТВЬ B (Справа)</span>
-              <div className="flex gap-2 text-slate-300">
+              <div className="compare-selects flex gap-2 text-slate-300">
                 <select
                   value={branchBGoal}
                   onChange={(e) => setBranchBGoal(e.target.value)}
@@ -124,7 +126,7 @@ export default function WhatIfSplitScreen({
         </div>
 
         {/* Action Button */}
-        <div className="px-4 py-3 bg-space-950 flex items-center justify-between border-b border-subtle">
+        <div className="compare-action px-4 py-3 bg-space-950 flex items-center justify-between border-b border-subtle">
           <span className="text-xs font-mono text-slate-400">
             Шаг развилки: #{currentStep}. Обе ветви получат идентичное состояние КА.
           </span>
@@ -137,11 +139,20 @@ export default function WhatIfSplitScreen({
             <span>{loading ? 'Расчет сравнения...' : 'Запустить параллельное сравнение'}</span>
           </button>
         </div>
+        {error && <div className="compare-error">{error}</div>}
 
         {/* Comparison Split Results */}
         <div className="flex-1 overflow-y-auto p-5">
           {comparison ? (
             <div className="space-y-6">
+              <div className="compare-verdict">
+                <div><span>КОНТРОЛЬНАЯ ТОЧКА</span><strong>Шаг {comparison.fork_step ?? currentStep}</strong></div>
+                <div className="compare-verdict__statement">
+                  <span>РЕКОМЕНДАЦИЯ</span>
+                  <strong>{comparison.delta.critical_p3_jobs > 0 || comparison.delta.revenue_usd > 0 ? 'Ветвь А эффективнее' : comparison.delta.critical_p3_jobs < 0 || comparison.delta.revenue_usd < 0 ? 'Ветвь B эффективнее' : 'Результаты сопоставимы'}</strong>
+                </div>
+                <div><span>ГОРИЗОНТ</span><strong>До конца смены</strong></div>
+              </div>
               
               {/* Delta Banner */}
               <div className="p-4 bg-space-850 border border-subtle rounded space-y-2 font-mono">
@@ -193,7 +204,7 @@ export default function WhatIfSplitScreen({
                 {/* Branch A Card */}
                 <div className="p-4 bg-space-850 border border-orbit-emerald/30 rounded space-y-3">
                   <div className="flex items-center justify-between border-b border-subtle pb-2">
-                    <span className="text-xs font-bold text-orbit-emerald">ВЕТВЬ А // {comparison.branch_a.goal.toUpperCase()}</span>
+                    <span className="text-xs font-bold text-orbit-emerald">ВЕТВЬ А // {comparison.branch_a.goal.toUpperCase()} · {(comparison.branch_a.algorithm || branchAAlgo).replace('vector_smart', 'SMART').replace('baseline', 'BASELINE')}</span>
                     <button
                       onClick={() => onSwitchSession(comparison.branch_a.session_id)}
                       className="text-[11px] text-orbit-emerald hover:underline flex items-center gap-1"
@@ -228,7 +239,7 @@ export default function WhatIfSplitScreen({
                 {/* Branch B Card */}
                 <div className="p-4 bg-space-850 border border-orbit-amber/30 rounded space-y-3">
                   <div className="flex items-center justify-between border-b border-subtle pb-2">
-                    <span className="text-xs font-bold text-orbit-amber">ВЕТВЬ B // {comparison.branch_b.goal.toUpperCase()}</span>
+                    <span className="text-xs font-bold text-orbit-amber">ВЕТВЬ B // {comparison.branch_b.goal.toUpperCase()} · {(comparison.branch_b.algorithm || branchBAlgo).replace('vector_smart', 'SMART').replace('baseline', 'BASELINE')}</span>
                     <button
                       onClick={() => onSwitchSession(comparison.branch_b.session_id)}
                       className="text-[11px] text-orbit-amber hover:underline flex items-center gap-1"
@@ -271,8 +282,7 @@ export default function WhatIfSplitScreen({
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-subtle bg-space-950/80 flex items-center justify-between text-xs font-mono text-slate-400">
-          <span>Сравнение строится на полностью изолированных форках (Session.fork)</span>
+        <div className="p-4 border-t border-subtle bg-space-950/80 flex items-center justify-end text-xs font-mono text-slate-400">
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded bg-white/10 hover:bg-white/20 text-white transition-colors"

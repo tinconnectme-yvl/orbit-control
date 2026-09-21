@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from ..models.schemas import CompareBranchesRequest
 from .session import get_session, SESSIONS, PLANNERS
 from ..planners.dispatcher import get_planner
+from ..core.simulator import ConstellationSession
 
 router = APIRouter(prefix="/api/compare", tags=["What-If Comparison"])
 
@@ -18,15 +19,32 @@ def compare_branches(req: CompareBranchesRequest):
     and run them to completion to compare strategies (e.g. Priority vs Commercial, or Smart vs Baseline).
     """
     base_session = get_session(req.base_session_id)
-    fork_step = base_session.current_step
+    fork_step = base_session.current_step if req.fork_step is None else max(0, min(base_session.total_steps, req.fork_step))
+
+    source = ConstellationSession(
+        scenario=base_session.scenario,
+        goal=base_session.goal,
+        algorithm=base_session.algorithm,
+        session_id=f"{base_session.session_id}_at_{fork_step}"
+    )
+    events_by_step = {}
+    for event in base_session.session.events:
+        events_by_step.setdefault(event['at_step'], []).append(event)
+    source_planner = get_planner(source.algorithm, source.goal)
+    while source.current_step < fork_step:
+        for event in events_by_step.get(source.current_step, []):
+            source.apply_event(event)
+        source.advance(source_planner.plan_step(source, source.current_step))
+    for event in events_by_step.get(source.current_step, []):
+        source.apply_event(event)
     
     # Create two independent forks
-    branch_a = base_session.fork(new_session_id=f"{base_session.session_id}_branch_a")
+    branch_a = source.fork(new_session_id=f"{base_session.session_id}_branch_a_{fork_step}")
     branch_a.goal = req.branch_a_goal
     branch_a.algorithm = req.branch_a_algorithm
     planner_a = get_planner(req.branch_a_algorithm, req.branch_a_goal)
     
-    branch_b = base_session.fork(new_session_id=f"{base_session.session_id}_branch_b")
+    branch_b = source.fork(new_session_id=f"{base_session.session_id}_branch_b_{fork_step}")
     branch_b.goal = req.branch_b_goal
     branch_b.algorithm = req.branch_b_algorithm
     planner_b = get_planner(req.branch_b_algorithm, req.branch_b_goal)

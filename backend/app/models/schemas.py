@@ -47,6 +47,7 @@ class StepRequest(BaseModel):
 
 class DynamicEventRequest(BaseModel):
     id: Optional[str] = None
+    at_step: Optional[int] = None
     type: str # 'add_jobs', 'satellite_outage', 'close_downlink'
     satellite_ids: Optional[List[str]] = None
     end_step: Optional[int] = None
@@ -90,7 +91,7 @@ class CompareBranchesRequest(BaseModel):
     branch_a_goal: str = "priority"
     branch_a_algorithm: str = "vector_smart"
     branch_b_goal: str = "revenue"
-    branch_b_algorithm: str = "vector_smart"
+    branch_b_algorithm: str = "baseline"
 
 class JobDiagnostic(BaseModel):
     job_id: str

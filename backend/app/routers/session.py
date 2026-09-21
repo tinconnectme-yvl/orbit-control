@@ -232,9 +232,6 @@ def get_session_timeline(session_id: str):
         goal=base.goal,
         algorithm=base.algorithm
     )
-    for ev in base.session.events:
-        sim.apply_event(ev)
-        
     planner = get_planner(base.algorithm, base.goal)
     total_steps = sim.total_steps
     step_s = sim.session.env.s['time']['step_s']
@@ -295,6 +292,15 @@ def get_session_timeline(session_id: str):
             "satellites": sat_list
         }
         
+    events_by_step = {}
+    for event in base.session.events:
+        events_by_step.setdefault(event['at_step'], []).append(event)
+
+    def apply_events_at(step):
+        for event in events_by_step.get(step, []):
+            sim.apply_event(event)
+
+    apply_events_at(0)
     steps_data.append(capture_step(0))
     
     while not sim.is_finished:
@@ -302,6 +308,7 @@ def get_session_timeline(session_id: str):
         actions = planner.plan_step(sim, k)
         sim.advance(actions)
         last_grid = sim.grid_history[-1] if sim.grid_history else {}
+        apply_events_at(sim.current_step)
         steps_data.append(capture_step(sim.current_step, last_grid))
         
     return {

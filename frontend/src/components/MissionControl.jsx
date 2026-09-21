@@ -85,6 +85,7 @@ export default function MissionControl({ sessionId, onBackToHero }) {
   const [showChaosMonkey, setShowChaosMonkey] = useState(false);
   const [showWhatIf, setShowWhatIf] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [eventNotice, setEventNotice] = useState(null);
 
   const simTimeRef = useRef(0);
   const lastTimestampRef = useRef(performance.now());
@@ -123,13 +124,20 @@ export default function MissionControl({ sessionId, onBackToHero }) {
 
   useEffect(() => {
     let animationId;
+    let accumulated = 0;
     lastTimestampRef.current = performance.now();
     const loop = (now) => {
       const delta = Math.min(0.1, (now - lastTimestampRef.current) / 1000);
       lastTimestampRef.current = now;
+      accumulated += delta;
       if (isPlayingRef.current && timelineData) {
+        if (accumulated < 1 / 30) {
+          animationId = requestAnimationFrame(loop);
+          return;
+        }
         const horizon = timelineData.horizon_s || timelineData.total_steps * 300;
-        const nextTime = simTimeRef.current + delta * speedMultiplier;
+        const nextTime = simTimeRef.current + accumulated * speedMultiplier;
+        accumulated = 0;
         if (nextTime >= horizon) {
           simTimeRef.current = horizon;
           setSimTime(horizon);
@@ -138,6 +146,8 @@ export default function MissionControl({ sessionId, onBackToHero }) {
           simTimeRef.current = nextTime;
           setSimTime(nextTime);
         }
+      } else {
+        accumulated = 0;
       }
       animationId = requestAnimationFrame(loop);
     };
@@ -168,18 +178,15 @@ export default function MissionControl({ sessionId, onBackToHero }) {
     const current = timelineData.steps[currentStep] || timelineData.steps[0];
     const next = timelineData.steps[nextStep] || current;
     const currentSummary = current.summary || {};
-    const nextSummary = next.summary || currentSummary;
-    const interpolate = (key, fallback = 0) => (currentSummary[key] ?? fallback) + ((nextSummary[key] ?? currentSummary[key] ?? fallback) - (currentSummary[key] ?? fallback)) * fraction;
-    const thresholdSummary = fraction > 0.95 ? nextSummary : currentSummary;
     const liveSummary = {
       ...currentSummary,
-      revenue_usd: interpolate('revenue_usd'),
-      completed_jobs: thresholdSummary.completed_jobs ?? thresholdSummary.jobs_completed ?? 0,
-      jobs_completed: thresholdSummary.completed_jobs ?? thresholdSummary.jobs_completed ?? 0,
-      missed_jobs: thresholdSummary.missed_jobs ?? thresholdSummary.jobs_due_missed ?? 0,
-      jobs_due_missed: thresholdSummary.missed_jobs ?? thresholdSummary.jobs_due_missed ?? 0,
-      critical_jobs_completed_on_time: thresholdSummary.critical_completed ?? thresholdSummary.critical_jobs_completed_on_time ?? 0,
-      critical_jobs_due: thresholdSummary.critical_total ?? thresholdSummary.critical_jobs_due ?? 0,
+      revenue_usd: currentSummary.revenue_usd ?? 0,
+      completed_jobs: currentSummary.completed_jobs ?? currentSummary.jobs_completed ?? 0,
+      jobs_completed: currentSummary.completed_jobs ?? currentSummary.jobs_completed ?? 0,
+      missed_jobs: currentSummary.missed_jobs ?? currentSummary.jobs_due_missed ?? 0,
+      jobs_due_missed: currentSummary.missed_jobs ?? currentSummary.jobs_due_missed ?? 0,
+      critical_jobs_completed_on_time: currentSummary.critical_completed ?? currentSummary.critical_jobs_completed_on_time ?? 0,
+      critical_jobs_due: currentSummary.critical_total ?? currentSummary.critical_jobs_due ?? 0,
       minimum_soc_pct: currentSummary.minimum_soc_pct ?? 100
     };
     const nextSatellites = next.satellites || [];
@@ -199,6 +206,14 @@ export default function MissionControl({ sessionId, onBackToHero }) {
   }, [timelineData, currentStep, nextStep, fraction, sessionState]);
 
   const selectedSatellite = satellites.find((satellite) => satellite.id === selectedSatelliteId) || satellites[0];
+  const visibleEvents = useMemo(() => (sessionState?.events_applied || []).filter((event) => {
+    const start = Number(event.at_step || 0);
+    if (event.type === 'add_jobs') return start <= currentStep && currentStep < start + 18;
+    return start <= currentStep && currentStep < Number(event.end_step || start + 1);
+  }), [sessionState?.events_applied, currentStep]);
+  const impactEvents = visibleEvents.length
+    ? visibleEvents
+    : (eventNotice && Number(eventNotice.at_step || 0) === currentStep ? [eventNotice] : []);
   const filteredSatellites = useMemo(() => satellites.filter((satellite) => {
     const action = satellite.current_action || '';
     if (fleetSearchQuery && !satellite.id.toLowerCase().includes(fleetSearchQuery.toLowerCase())) return false;
@@ -341,11 +356,21 @@ export default function MissionControl({ sessionId, onBackToHero }) {
                 <button type="button" onClick={() => setShowFleetDrawer((value) => !value)} className={showFleetDrawer ? 'is-active' : ''}>
                   <Satellite size={16} /><span>Группировка · {satellites.length}</span><ChevronDown size={15} />
                 </button>
-                <div>
-                  <button type="button" onClick={() => setShowChaosMonkey(true)}><Flame size={15} /><span>Отказ</span></button>
-                  <button type="button" onClick={() => setShowWhatIf(true)}><GitFork size={15} /><span>What‑if</span></button>
-                </div>
               </div>
+
+              {impactEvents.length > 0 && (
+                <div className="event-impact" role="status">
+                  {impactEvents.filter(Boolean).slice(-2).map((event) => {
+                    const remaining = event.end_step ? Math.max(0, event.end_step - currentStep) : null;
+                    const label = event.type === 'satellite_outage'
+                      ? `ОТКАЗ: ${(event.satellite_ids || []).join(', ')} недоступен`
+                      : event.type === 'close_downlink'
+                        ? 'DOWNLINK ЗАКРЫТ: передача на Землю недоступна'
+                        : `СРОЧНЫЙ ВБРОС: ${(event.jobs || []).length} заявки добавлены в очередь`;
+                    return <div key={event.id || label} className={`event-impact__item event-impact__item--${event.type}`}><AlertTriangle size={15} /><strong>{label}</strong>{remaining != null && <span>ещё {remaining} шаг.</span>}</div>;
+                  })}
+                </div>
+              )}
 
               {showFleetDrawer && (
                 <aside className="fleet-drawer">
@@ -363,8 +388,8 @@ export default function MissionControl({ sessionId, onBackToHero }) {
                     {filteredSatellites.map((satellite) => {
                       const action = satellite.current_action || 'idle';
                       return (
-                        <button key={satellite.id} type="button" className={satellite.id === selectedSatelliteId ? 'is-active' : ''} onClick={() => { setSelectedSatelliteId(satellite.id); setShowInspector(true); }}>
-                          <span className="fleet-list__id"><strong>{satellite.id}</strong><small>{ACTION_LABELS[action] || action}</small></span>
+                        <button key={satellite.id} type="button" className={`${satellite.id === selectedSatelliteId ? 'is-active' : ''} ${!satellite.available ? 'is-unavailable' : ''}`} onClick={() => { setSelectedSatelliteId(satellite.id); setShowInspector(true); }}>
+                          <span className="fleet-list__id"><strong>{satellite.id}</strong><small>{!satellite.available ? 'ОТКАЗ · НЕДОСТУПЕН' : (ACTION_LABELS[action] || action)}</small></span>
                           <span className="fleet-list__metric"><Battery size={13} />{Number(satellite.soc_pct || 0).toFixed(0)}%</span>
                           <span className="fleet-list__metric">{Number(satellite.temp_c || 0).toFixed(0)}°</span>
                         </button>
@@ -375,9 +400,9 @@ export default function MissionControl({ sessionId, onBackToHero }) {
               )}
 
               {selectedSatellite && (
-                <div className="satellite-strip">
-                  <span className="satellite-strip__icon"><Satellite size={19} /></span>
-                  <div><strong>{selectedSatellite.id}</strong><span>{ACTION_LABELS[selectedSatellite.current_action] || selectedSatellite.current_action || 'Ожидание'}</span></div>
+                <div className={`satellite-strip ${!selectedSatellite.available ? 'is-unavailable' : ''}`}>
+                  <span className="satellite-strip__icon">{selectedSatellite.available ? <Satellite size={19} /> : <AlertTriangle size={19} />}</span>
+                  <div><strong>{selectedSatellite.id}</strong><span>{!selectedSatellite.available ? 'ОТКАЗ · аппарат исключён из планирования' : (ACTION_LABELS[selectedSatellite.current_action] || selectedSatellite.current_action || 'Ожидание')}</span></div>
                   <div className="satellite-strip__readings"><span><Battery size={13} />{Number(selectedSatellite.soc_pct || 0).toFixed(1)}%</span><span>{Number(selectedSatellite.temp_c || 0).toFixed(1)}°C</span></div>
                   <button type="button" onClick={() => setShowInspector(true)}>Подробнее</button>
                 </div>
@@ -403,7 +428,7 @@ export default function MissionControl({ sessionId, onBackToHero }) {
           )}
 
           {activeNav === 'tasks' && (
-            <section className="secondary-workspace"><ExplainableModal sessionId={workingSessionId} isInline onClose={() => setActiveNav('globe')} /></section>
+            <section className="secondary-workspace"><ExplainableModal sessionId={workingSessionId} currentStep={currentStep} isInline onClose={() => setActiveNav('globe')} /></section>
           )}
         </main>
       </div>
@@ -416,7 +441,7 @@ export default function MissionControl({ sessionId, onBackToHero }) {
         <button type="button" onClick={() => setShowWhatIf(true)}><GitFork size={19} /><span>Сравнить</span></button>
       </nav>
 
-      {showChaosMonkey && <ChaosMonkeyModal sessionId={workingSessionId} currentStep={currentStep} totalSteps={totalSteps} satellites={satellites} onClose={() => setShowChaosMonkey(false)} onEventApplied={() => loadTimeline(workingSessionId)} />}
+      {showChaosMonkey && <ChaosMonkeyModal sessionId={workingSessionId} currentStep={currentStep} totalSteps={totalSteps} satellites={satellites} onClose={() => setShowChaosMonkey(false)} onEventApplied={(event) => { setEventNotice(event); loadTimeline(workingSessionId); }} />}
       {showWhatIf && <WhatIfSplitScreen sessionId={workingSessionId} currentStep={currentStep} onClose={() => setShowWhatIf(false)} onSwitchSession={(id) => { setWorkingSessionId(id); setShowWhatIf(false); seekTo(0); loadTimeline(id); }} />}
       {showReportModal && <MissionReportModal sessionId={workingSessionId} scenarioId={sessionState?.scenario_id} summary={summary} onClose={() => setShowReportModal(false)} />}
     </div>
