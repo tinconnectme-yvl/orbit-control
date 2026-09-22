@@ -86,7 +86,7 @@ export default function MissionReportModal({
               <div className="text-xl font-bold text-white">
                 {critDone} / {critTotal}
               </div>
-              <div className="text-[10px] text-cyan-400">
+              <div className="text-[10px] text-orbit-secondary">
                 {critTotal > 0 ? `${Math.round((critDone / critTotal) * 100)}% выполнение` : '100% норма'}
               </div>
             </div>
@@ -139,9 +139,9 @@ export default function MissionReportModal({
               href={getExportReportUrl(sessionId)}
               target="_blank"
               rel="noreferrer"
-              className="py-2.5 px-3 rounded-xl bg-space-900 border border-subtle hover:border-cyan-400 hover:bg-space-850 text-white font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
+              className="py-2.5 px-3 rounded-xl bg-space-900 border border-subtle hover:border-orbit-terracotta hover:bg-space-850 text-white font-bold flex items-center justify-center gap-2 transition-all cursor-pointer"
             >
-              <Printer className="w-4 h-4 text-cyan-400" />
+              <Printer className="w-4 h-4 text-orbit-terracotta" />
               <span>Печатный бланк</span>
             </a>
           </div>

@@ -111,6 +111,14 @@ const ORBIT_ALT_KM = 600.0;
 const R_ORBIT = R_EARTH + ORBIT_ALT_KM;
 const N_MEAN_MOTION = Math.sqrt(MU_EARTH / (R_ORBIT ** 3)); // ~0.001083 rad/sec
 
+// Apple Modern palette orbital plane colors: Blue, Silver, Green, Amber
+const planeColors = [
+  '#007AFF', // Plane 1: Apple Electric Blue
+  '#AAAAAA', // Plane 2: Neutral Silver Gray
+  '#30D158', // Plane 3: Apple System Green
+  '#FF9F0A', // Plane 4: Apple System Amber
+];
+
 export default function Earth3DViewer({ 
   satellites = [], 
   simTime = 0,
@@ -174,12 +182,12 @@ export default function Earth3DViewer({
 
     let animId = null;
 
-    // Plane colors from 2026-09-11_KosmoHack
+    // Plane colors matching Apple Modern palette
     const planeColors = {
-      0: '#a9d8ff', // P1: Soft Cyan Blue
-      1: '#e3be83', // P2: Champagne Gold
-      2: '#aaa6e8', // P3: Lavender Violet
-      3: '#34d399'  // P4: Emerald Green
+      0: '#007AFF', // P1: Apple Electric Blue
+      1: '#AAAAAA', // P2: Neutral Silver Gray
+      2: '#30D158', // P3: Apple System Green
+      3: '#FF9F0A'  // P4: Apple System Amber
     };
 
     /**
@@ -254,14 +262,14 @@ export default function Earth3DViewer({
 
       ctx.clearRect(0, 0, w, h);
 
-      // Starfield background from KosmoHack
+      // Starfield background with clean silver & alabaster stars
       let seed = 42;
       for (let i = 0; i < 90; i++) {
         seed = (seed * 16807) % 2147483647;
         const sx = (seed % 10000) / 10000 * w;
         seed = (seed * 16807) % 2147483647;
         const sy = (seed % 10000) / 10000 * h;
-        ctx.fillStyle = i % 5 ? 'rgba(99, 123, 150, 0.35)' : 'rgba(187, 216, 240, 0.6)';
+        ctx.fillStyle = i % 5 ? 'rgba(170, 170, 170, 0.28)' : 'rgba(245, 245, 247, 0.65)';
         ctx.fillRect(sx, sy, dpr * (i % 5 ? 0.8 : 1.2), dpr * (i % 5 ? 0.8 : 1.2));
       }
 
@@ -327,8 +335,8 @@ export default function Earth3DViewer({
           }
         }
 
-        ctx.strokeStyle = (planeColors[p] || '#a9d8ff') + '35';
-        ctx.lineWidth = 0.8 * dpr;
+        ctx.strokeStyle = (planeColors[p] || '#007AFF') + '45';
+        ctx.lineWidth = 0.85 * dpr;
         ctx.stroke();
       }
       ctx.restore();
@@ -342,34 +350,34 @@ export default function Earth3DViewer({
         }
         if (pt.visible) {
           if (tgt.type === 'ground_station') {
-            // Ground Station dish with neon pulse ring
+            // Ground Station dish with emerald pulse ring (Apple System Green #30D158)
             const pulseR = (12 + Math.sin(pulsePhaseRef.current) * 2.5) * dpr;
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, pulseR, 0, Math.PI * 2);
-            ctx.strokeStyle = 'rgba(0, 255, 136, 0.4)';
+            ctx.strokeStyle = 'rgba(48, 209, 88, 0.45)';
             ctx.lineWidth = 1.5 * dpr;
             ctx.stroke();
 
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, 5 * dpr, 0, Math.PI * 2);
-            ctx.fillStyle = '#00ff88';
+            ctx.fillStyle = '#30D158';
             ctx.fill();
-            ctx.strokeStyle = '#ffffff';
+            ctx.strokeStyle = '#F5F5F7';
             ctx.lineWidth = 1 * dpr;
             ctx.stroke();
 
             ctx.font = `bold ${10 * dpr}px JetBrains Mono, monospace`;
-            ctx.fillStyle = '#00ff88';
+            ctx.fillStyle = '#30D158';
             ctx.fillText('ЦУП ВОСТОЧНЫЙ', pt.x + 10 * dpr, pt.y + 3 * dpr);
           } else {
-            // Target point
+            // Target point (Apple System Blue #007AFF)
             ctx.beginPath();
             ctx.arc(pt.x, pt.y, 3 * dpr, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(255, 184, 0, 0.8)';
+            ctx.fillStyle = 'rgba(0, 122, 255, 0.9)';
             ctx.fill();
 
             ctx.font = `${9 * dpr}px JetBrains Mono, monospace`;
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.fillStyle = '#AAAAAA';
             ctx.fillText(tgt.name, pt.x + 7 * dpr, pt.y + 3 * dpr);
           }
         }
@@ -485,9 +493,9 @@ export default function Earth3DViewer({
               ctx.beginPath();
               ctx.moveTo(previous.x, previous.y);
               ctx.lineTo(point.x, point.y);
-              ctx.strokeStyle = 'rgba(0, 229, 255, 0.98)';
+              ctx.strokeStyle = 'rgba(0, 122, 255, 0.95)';
               ctx.lineWidth = 2.35 * dpr;
-              ctx.shadowColor = '#00e5ff';
+              ctx.shadowColor = '#007AFF';
               ctx.shadowBlur = 7 * dpr;
               ctx.stroke();
             }
@@ -511,8 +519,8 @@ export default function Earth3DViewer({
         }
 
         if (!sat.available) {
-          // Red failure cross (from KosmoHack)
-          ctx.strokeStyle = '#ef4444';
+          // Red failure cross (Apple System Red #FF453A)
+          ctx.strokeStyle = '#FF453A';
           ctx.lineWidth = 2.5 * dpr;
           const r = 6 * dpr;
           ctx.beginPath();
@@ -520,11 +528,11 @@ export default function Earth3DViewer({
           ctx.moveTo(r, -r); ctx.lineTo(-r, r);
           ctx.stroke();
         } else {
-          // Active satellite (from KosmoHack)
-          const color = planeColors[planeIdx % 4] || '#a9d8ff';
+          // Active satellite in orbital plane color
+          const color = planeColors[planeIdx % 4] || '#007AFF';
           ctx.fillStyle = color;
           if (isHovered || isSelected) {
-            ctx.shadowColor = isSelected ? '#00ff88' : color;
+            ctx.shadowColor = isSelected ? '#30D158' : color;
             ctx.shadowBlur = 14 * dpr;
           }
 
@@ -533,14 +541,14 @@ export default function Earth3DViewer({
           ctx.arc(0, 0, satRadius, 0, Math.PI * 2);
           ctx.fill();
 
-          ctx.strokeStyle = '#ffffff';
+          ctx.strokeStyle = '#F5F5F7';
           ctx.lineWidth = 1 * dpr;
           ctx.stroke();
 
           if (isSelected) {
             ctx.beginPath();
             ctx.arc(0, 0, satRadius + 4 * dpr, 0, Math.PI * 2);
-            ctx.strokeStyle = '#00ff88';
+            ctx.strokeStyle = '#30D158';
             ctx.lineWidth = 1.5 * dpr;
             ctx.stroke();
           }
@@ -549,7 +557,7 @@ export default function Earth3DViewer({
         // Label
         if (isHovered || isSelected) {
           ctx.font = `bold ${8.5 * dpr}px JetBrains Mono, monospace`;
-          ctx.fillStyle = !sat.available ? '#ef4444' : (isSelected ? '#00ff88' : '#cbd5e1');
+          ctx.fillStyle = !sat.available ? '#FF453A' : (isSelected ? '#30D158' : '#F5F5F7');
           ctx.fillText(sat.id, 6 * dpr, 3 * dpr);
         }
 
@@ -662,57 +670,57 @@ export default function Earth3DViewer({
         <button
           onClick={resetCamera}
           title="Сброс камеры (ЦУП Восточный)"
-          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-cyan-400 border border-slate-700/60 transition"
+          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
         >
           <Compass className="w-4 h-4" />
         </button>
         <button 
           onClick={() => setGlobeZoom(z => Math.min(2.5, z + 0.15))}
           title="Приблизить"
-          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-cyan-400 border border-slate-700/60 transition"
+          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button 
           onClick={() => setGlobeZoom(z => Math.max(0.65, z - 0.15))}
           title="Отдалить"
-          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-cyan-400 border border-slate-700/60 transition"
+          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
         <button
           onClick={() => setIsRotating(r => !r)}
           title={isRotating ? "Остановить авто-вращение" : "Включить авто-вращение"}
-          className={`p-1.5 rounded-md border transition ${isRotating ? 'bg-cyan-500/20 text-cyan-400 border-cyan-500/50' : 'bg-space-900/80 text-slate-400 border-slate-700/60'}`}
+          className={`p-1.5 rounded-md border transition ${isRotating ? 'bg-orbit-blue/20 text-orbit-blue border-orbit-blue/50' : 'bg-space-900/80 text-slate-400 border-slate-700/60'}`}
         >
           <RotateCw className="w-4 h-4" />
         </button>
       </div>
 
       {/* Mini Legend Overlay */}
-      <div className="earth-legend absolute bottom-3 left-3 flex items-center gap-3 px-2.5 py-1.5 rounded-md bg-space-900/85 border border-slate-800 text-[10px] text-slate-300 font-mono pointer-events-none z-10 backdrop-blur-sm">
+      <div className="earth-legend absolute bottom-3 left-3 flex items-center gap-3 px-2.5 py-1.5 rounded-md bg-space-900/90 border border-slate-700 text-[10px] text-slate-300 font-mono pointer-events-none z-10 backdrop-blur-sm">
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#a9d8ff] ring-1 ring-white/50" />
+          <span className="w-2 h-2 rounded-full bg-[#007AFF] ring-1 ring-white/50" />
           <span>P1</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#e3be83] ring-1 ring-white/50" />
+          <span className="w-2 h-2 rounded-full bg-[#AAAAAA] ring-1 ring-white/50" />
           <span>P2</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#aaa6e8] ring-1 ring-white/50" />
+          <span className="w-2 h-2 rounded-full bg-[#30D158] ring-1 ring-white/50" />
           <span>P3</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#34d399] ring-1 ring-white/50" />
+          <span className="w-2 h-2 rounded-full bg-[#FF9F0A] ring-1 ring-white/50" />
           <span>P4</span>
         </div>
         <div className="flex items-center gap-1 pl-1 border-l border-slate-700">
-          <span className="text-red-500 font-bold">✕</span>
+          <span className="text-[#FF453A] font-bold">✕</span>
           <span>Отказ</span>
         </div>
         <div className="flex items-center gap-1">
-          <span className="w-2 h-0.5 bg-[#00e5ff]" />
+          <span className="w-2 h-0.5 bg-[#007AFF]" />
           <span>Сброс</span>
         </div>
       </div>

@@ -1,6 +1,10 @@
 frontend/node_modules/
-frontend/dist/
 **/__pycache__/
 *.pyc
 .sites-runtime/
 .site-archive.zip
+.openai/
+PITCH_SCRIPT.md
+.user_uploaded/
+.DS_Store
+Thumbs.db

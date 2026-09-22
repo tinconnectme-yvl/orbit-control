@@ -48,14 +48,14 @@ export default function ConstellationGantt({
   const headerHeight = 26;
   const labelWidth = 56;
 
-  // Fast color palette for action types
+  // Fast color palette for action types in Apple Modern palette
   const getActionColor = (act = '', isAvailable = true) => {
-    if (!isAvailable) return '#EF4444'; // Outage red
-    if (act.includes('downlink')) return '#00E5FF'; // Downlink cyan
-    if (act.includes('relay')) return '#A855F7';    // Relay purple
-    if (act.includes('calibrate')) return '#F59E0B';// Calibration amber
-    if (act.includes('job')) return '#10B981';      // Work job emerald
-    return '#0B0F19';                               // Idle / background
+    if (!isAvailable) return '#FF453A';            // Outage Apple System Red
+    if (act.includes('downlink')) return '#007AFF'; // Downlink Apple System Blue
+    if (act.includes('relay')) return '#BF5AF2';    // Relay Apple System Purple
+    if (act.includes('calibrate')) return '#AAAAAA';// Calibration Neutral Silver
+    if (act.includes('job')) return '#30D158';      // Work job Apple System Green
+    return '#1D1D1F';                               // Idle / background
   };
 
   // High performance Canvas Matrix Renderer
@@ -79,9 +79,9 @@ export default function ConstellationGantt({
     ctx.clearRect(0, 0, totalW, totalH);
 
     // 1. Draw Step Header
-    ctx.fillStyle = '#060911';
+    ctx.fillStyle = '#121214';
     ctx.fillRect(0, 0, totalW, headerHeight);
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(0, headerHeight);
@@ -89,14 +89,14 @@ export default function ConstellationGantt({
     ctx.stroke();
 
     ctx.font = '10px JetBrains Mono, monospace';
-    ctx.fillStyle = '#64748B';
+    ctx.fillStyle = '#AAAAAA';
     ctx.fillText('КА \\ ШАГ', 6, 17);
 
     const labelInterval = totalSteps <= 48 ? 6 : (colWidth >= 10 ? 12 : 24);
     for (let k = 0; k < totalSteps; k++) {
       const x = labelWidth + k * colWidth;
       if (k % labelInterval === 0) {
-        ctx.fillStyle = '#94A3B8';
+        ctx.fillStyle = '#F5F5F7';
         ctx.fillText(String(k), x + 2, 17);
       }
     }
@@ -110,18 +110,18 @@ export default function ConstellationGantt({
       const isSelected = sat.id === selectedSatelliteId;
 
       // Row background
-      ctx.fillStyle = isSelected ? 'rgba(0, 255, 136, 0.12)' : (rowIdx % 2 === 0 ? '#080C14' : '#05080E');
+      ctx.fillStyle = isSelected ? 'rgba(0, 122, 255, 0.18)' : (rowIdx % 2 === 0 ? '#0B0B0D' : '#141416');
       ctx.fillRect(0, y, totalW, rowHeight);
 
       // Row separator
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.04)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
       ctx.beginPath();
       ctx.moveTo(0, y + rowHeight);
       ctx.lineTo(totalW, y + rowHeight);
       ctx.stroke();
 
       // Satellite ID label
-      ctx.fillStyle = isSelected ? '#00FF88' : '#CBD5E1';
+      ctx.fillStyle = isSelected ? '#30D158' : '#AAAAAA';
       ctx.font = isSelected ? 'bold 10px JetBrains Mono, monospace' : '10px JetBrains Mono, monospace';
       ctx.fillText(sat.id, 10, y + 15);
 
@@ -136,14 +136,14 @@ export default function ConstellationGantt({
         const isPast = k <= currentStep;
         const color = getActionColor(act, isAvail);
 
-        if (color !== '#0B0F19') {
+        if (color !== '#1D1D1F') {
           ctx.fillStyle = color;
           ctx.globalAlpha = isPast ? 0.95 : 0.45;
           ctx.fillRect(x + 0.5, y + 1.5, colWidth - 1, rowHeight - 3);
           ctx.globalAlpha = 1.0;
         } else {
           // Idle subtle border
-          ctx.fillStyle = isPast ? '#0D1321' : '#080C14';
+          ctx.fillStyle = isPast ? '#1D1D1F' : '#121214';
           ctx.fillRect(x + 0.5, y + 1.5, colWidth - 1, rowHeight - 3);
         }
       }
@@ -152,10 +152,10 @@ export default function ConstellationGantt({
     // 4. Current Step Time Cursor Bar
     const cursorX = labelWidth + currentStep * colWidth;
     ctx.save();
-    ctx.strokeStyle = '#00FF88';
+    ctx.strokeStyle = '#007AFF';
     ctx.lineWidth = 2;
-    ctx.shadowColor = '#00FF88';
-    ctx.shadowBlur = 8;
+    ctx.shadowColor = '#007AFF';
+    ctx.shadowBlur = 6;
     ctx.beginPath();
     ctx.moveTo(cursorX, 0);
     ctx.lineTo(cursorX, totalH);
@@ -235,23 +235,23 @@ export default function ConstellationGantt({
         {/* Legend */}
         <div className="gantt-legend flex items-center gap-3 text-[10px]">
           <div className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#00E5FF]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#007AFF]" />
             <span className="text-slate-300">Downlink</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#A855F7]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#BF5AF2]" />
             <span className="text-slate-300">Relay</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#F59E0B]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#AAAAAA]" />
             <span className="text-slate-300">Калибровка</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#10B981]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#30D158]" />
             <span className="text-slate-300">Съемка</span>
           </div>
           <div className="flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-sm bg-[#EF4444]" />
+            <span className="w-2.5 h-2.5 rounded-sm bg-[#FF453A]" />
             <span className="text-slate-300">Авария</span>
           </div>
         </div>
@@ -321,7 +321,7 @@ export default function ConstellationGantt({
             <span>Шаг {hoveredCell.step + 1} ({hoveredCell.time})</span>
           </div>
           <div className="text-slate-300">
-            Действие: <b className="text-cyan-400">{hoveredCell.action}</b>
+            Действие: <b className="text-orbit-cyan">{hoveredCell.action}</b>
           </div>
           {hoveredCell.soc !== undefined && (
             <div className="text-slate-400">
@@ -334,8 +334,8 @@ export default function ConstellationGantt({
       {/* Footer Instructions */}
       <div className="gantt-footer px-4 py-2 border-t border-subtle bg-space-950/80 flex items-center justify-between text-[11px] text-slate-400 flex-shrink-0">
         <span>Кликните на спутник в строке слева для открытия детального инспектора питания.</span>
-        <span className="text-orbit-emerald font-bold">
-          Зеленый курсор синхронизирован с главным таймлайном 60 FPS
+        <span className="text-orbit-blue font-bold">
+          Синий курсор синхронизирован с главным таймлайном 60 FPS
         </span>
       </div>
 

@@ -165,7 +165,7 @@ export default function SatelliteInspector({
 
             <div className="flex items-center justify-between text-slate-300">
               <span className="flex items-center gap-1.5 text-slate-400">
-                <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                <Zap className="w-3.5 h-3.5 text-orbit-cyan" />
                 Потребление систем:
               </span>
               <span className="text-orbit-ruby font-bold">
@@ -206,7 +206,7 @@ export default function SatelliteInspector({
           {/* Temperature */}
           <div className="p-2.5 bg-space-850 border border-slate-700/60 rounded-lg">
             <div className="flex items-center gap-1 text-[10px] text-slate-400 mb-0.5">
-              <Thermometer className="w-3 h-3 text-cyan-400" />
+              <Thermometer className="w-3 h-3 text-orbit-terracotta" />
               <span>Темп-ра</span>
             </div>
             <div className="text-lg font-bold text-white">
@@ -281,7 +281,7 @@ export default function SatelliteInspector({
         <span>Резерв АКБ: {reserveSoc}%</span>
         <button
           onClick={onClose}
-          className="px-3 py-1 rounded bg-white/10 hover:bg-white/20 text-white font-sans text-xs transition-colors"
+          className="px-3 py-1 rounded bg-orbit-terracotta hover:bg-orbit-terracotta/90 text-white font-sans text-xs font-semibold transition-colors"
         >
           Скрыть
         </button>
