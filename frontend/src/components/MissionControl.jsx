@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Activity, AlertTriangle, ArrowLeft, BarChart2, Battery, ChevronDown,
   Download, FastForward, FileText, Flame, GitFork, Globe, HelpCircle,
-  Pause, Play, RotateCcw, Satellite, Search, SkipForward, X
+  Pause, Play, RotateCcw, Satellite, Search, SkipForward, SlidersHorizontal, X, Zap
 } from 'lucide-react';
 import {
   getExportJsonUrl, getSessionState, getSessionTimeline, resetSession
@@ -434,13 +434,150 @@ export default function MissionControl({ sessionId, onBackToHero }) {
           )}
 
           {activeNav === 'compare' && (
-            <section className="secondary-workspace secondary-workspace--compare">
-              <WhatIfSplitScreen
-                sessionId={workingSessionId}
-                currentStep={currentStep}
-                isInline
-                onSwitchSession={(id) => { setWorkingSessionId(id); setActiveNav('globe'); seekTo(0); loadTimeline(id); }}
-              />
+            <section className="secondary-workspace secondary-workspace--compare flex flex-col">
+              <div className="md:hidden p-2.5 bg-space-950/90 border-b border-subtle flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={() => setActiveNav('more')}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/10 hover:bg-white/15 text-xs text-slate-200 font-mono"
+                >
+                  <ArrowLeft size={14} />
+                  <span>Назад к Доп.</span>
+                </button>
+                <span className="text-[11px] font-mono text-orbit-cyan font-bold">Сравнение стратегий</span>
+              </div>
+              <div className="flex-1 min-h-0">
+                <WhatIfSplitScreen
+                  sessionId={workingSessionId}
+                  currentStep={currentStep}
+                  isInline
+                  onSwitchSession={(id) => { setWorkingSessionId(id); setActiveNav('globe'); seekTo(0); loadTimeline(id); }}
+                />
+              </div>
+            </section>
+          )}
+
+          {activeNav === 'more' && (
+            <section className="secondary-workspace secondary-workspace--more p-4 max-w-xl mx-auto space-y-3.5 font-mono overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div>
+                  <h2 className="text-sm font-bold text-white tracking-wide uppercase">Дополнительные функции ЦУП</h2>
+                  <p className="text-[11px] text-slate-400">Сбои, экстренные задания, What-If и экспорт</p>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-orbit-cyan/15 text-orbit-cyan border border-orbit-cyan/30">
+                  ШАГ {currentStep + 1}/{totalSteps}
+                </span>
+              </div>
+
+              {/* 1. Chaos Monkey / Fault */}
+              <div className="p-3.5 rounded-xl bg-space-850 border border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-orbit-ruby font-bold text-xs tracking-wider">
+                    <Flame size={16} />
+                    <span>ВВЕСТИ СБОЙ / СЛОМАТЬ КА</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-orbit-ruby/20 text-orbit-ruby font-bold">outage</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-sans">
+                  Имитировать аварию аппарата или закрытие наземного пункта Downlink прямо во время смены.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowChaosMonkey(true)}
+                  className="w-full py-2 px-3 rounded-lg bg-orbit-ruby/20 hover:bg-orbit-ruby/30 text-orbit-ruby border border-orbit-ruby/40 text-xs font-bold transition flex items-center justify-center gap-2"
+                >
+                  <Flame size={14} />
+                  <span>Сломать спутник / станцию</span>
+                </button>
+              </div>
+
+              {/* 2. Add Emergency Jobs */}
+              <div className="p-3.5 rounded-xl bg-space-850 border border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-orbit-emerald font-bold text-xs tracking-wider">
+                    <Zap size={16} />
+                    <span>ЭКСТРЕННЫЕ ЗАДАНИЯ (P3)</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-orbit-emerald/20 text-orbit-emerald font-bold">+ $300</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-sans">
+                  Вбросить 2 срочные заявки высшего приоритета P3 с жестким дедлайном в очередь планирования.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowChaosMonkey(true)}
+                  className="w-full py-2 px-3 rounded-lg bg-orbit-emerald/20 hover:bg-orbit-emerald/30 text-orbit-emerald border border-orbit-emerald/40 text-xs font-bold transition flex items-center justify-center gap-2"
+                >
+                  <Zap size={14} />
+                  <span>Вбросить срочные заявки</span>
+                </button>
+              </div>
+
+              {/* 3. Compare Strategies (What-If) */}
+              <div className="p-3.5 rounded-xl bg-space-850 border border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-orbit-cyan font-bold text-xs tracking-wider">
+                    <GitFork size={16} />
+                    <span>СРАВНИТЬ СТРАТЕГИИ (WHAT-IF)</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-orbit-cyan/20 text-orbit-cyan font-bold">session.fork</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-sans">
+                  Разветвить смену из текущего шага и сравнить стратегию P3 с коммерческой отдачей на сплит-экране.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setActiveNav('compare')}
+                  className="w-full py-2 px-3 rounded-lg bg-orbit-cyan/20 hover:bg-orbit-cyan/30 text-orbit-cyan border border-orbit-cyan/40 text-xs font-bold transition flex items-center justify-center gap-2"
+                >
+                  <GitFork size={14} />
+                  <span>Открыть сплит-скрин What-If</span>
+                </button>
+              </div>
+
+              {/* 4. Official Report */}
+              <div className="p-3.5 rounded-xl bg-space-850 border border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-200 font-bold text-xs tracking-wider">
+                    <FileText size={16} />
+                    <span>СМЕННЫЙ РАПОРТ ЦУП</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-slate-300 font-bold">Бюллетень</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-sans">
+                  Сформировать официальный рапорт руководству с таблицами и печатью верификации.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowReportModal(true)}
+                  className="w-full py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 border border-white/20 text-xs font-bold transition flex items-center justify-center gap-2"
+                >
+                  <FileText size={14} />
+                  <span>Открыть рапорт смены</span>
+                </button>
+              </div>
+
+              {/* 5. Export JSON */}
+              <div className="p-3.5 rounded-xl bg-space-850 border border-slate-700/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-slate-300 font-bold text-xs tracking-wider">
+                    <Download size={16} />
+                    <span>ВЫГРУЗИТЬ JSON РЕЗУЛЬТАТА</span>
+                  </div>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/10 text-slate-300 font-bold">cosmo 1.0</span>
+                </div>
+                <p className="text-[11px] text-slate-300 font-sans">
+                  Скачать итоговый файл расписания по официальной схеме cosmo-B-ops-result-1.0.
+                </p>
+                <a
+                  href={getExportJsonUrl(workingSessionId)}
+                  download
+                  className="w-full py-2 px-3 rounded-lg bg-white/10 hover:bg-white/15 text-slate-200 border border-white/20 text-xs font-bold transition flex items-center justify-center gap-2"
+                >
+                  <Download size={14} />
+                  <span>Скачать export.json</span>
+                </a>
+              </div>
             </section>
           )}
         </main>
@@ -451,7 +588,7 @@ export default function MissionControl({ sessionId, onBackToHero }) {
         {navigation.map(({ id, label, icon: Icon }) => (
           <button key={id} type="button" className={activeNav === id ? 'is-active' : ''} onClick={() => setActiveNav(id)}><Icon size={19} /><span>{label}</span></button>
         ))}
-        <button type="button" className={activeNav === 'compare' ? 'is-active' : ''} onClick={() => setActiveNav('compare')}><GitFork size={19} /><span>Сравнить</span></button>
+        <button type="button" className={activeNav === 'more' || activeNav === 'compare' ? 'is-active' : ''} onClick={() => setActiveNav('more')}><SlidersHorizontal size={19} /><span>Доп.</span></button>
       </nav>
 
       {showChaosMonkey && <ChaosMonkeyModal sessionId={workingSessionId} currentStep={currentStep} totalSteps={totalSteps} satellites={satellites} onClose={() => setShowChaosMonkey(false)} onEventApplied={(event) => { setEventNotice(event); loadTimeline(workingSessionId); }} />}

@@ -127,6 +127,9 @@ export default function Earth3DViewer({
   selectedSatelliteId,
   interactive = true,
   autoRotate = false,
+  showSatellites = true,
+  showLegend = true,
+  showControls = true,
   className = ""
 }) {
   const containerRef = useRef(null);
@@ -285,16 +288,17 @@ export default function Earth3DViewer({
       // 2. Exact physical time for satellites (STRICTLY simTime, zero drift on pause!)
       const t_s = simTime;
 
-      // 3. Draw 4 Orbit Tracks with Honest 3D Horizon Occlusion
-      const totalSats = Math.max(1, satellites.length);
-      const planesCount = totalSats > 16 ? 4 : 2;
-      const satsPerPlane = Math.ceil(totalSats / planesCount);
-      const incRad = (53.0 * Math.PI) / 180;
-      const cosInc = Math.cos(incRad);
-      const sinInc = Math.sin(incRad);
-      const th = OMEGA_EARTH * t_s;
-      const cosTh = Math.cos(th);
-      const sinTh = Math.sin(th);
+      if (showSatellites && satellites.length > 0) {
+        // 3. Draw 4 Orbit Tracks with Honest 3D Horizon Occlusion
+        const totalSats = Math.max(1, satellites.length);
+        const planesCount = totalSats > 16 ? 4 : 2;
+        const satsPerPlane = Math.ceil(totalSats / planesCount);
+        const incRad = (53.0 * Math.PI) / 180;
+        const cosInc = Math.cos(incRad);
+        const sinInc = Math.sin(incRad);
+        const th = OMEGA_EARTH * t_s;
+        const cosTh = Math.cos(th);
+        const sinTh = Math.sin(th);
 
       ctx.save();
       for (let p = 0; p < planesCount; p++) {
@@ -563,7 +567,10 @@ export default function Earth3DViewer({
 
         ctx.restore();
       }
-    };
+    } else {
+      projectedSatsRef.current = [];
+    }
+  };
 
     let lastFrame = 0;
     const loop = (now) => {
@@ -579,7 +586,7 @@ export default function Earth3DViewer({
     return () => {
       if (animId) cancelAnimationFrame(animId);
     };
-  }, [globeCenterLat, globeCenterLon, globeZoom, isRotating, isPlaying, simTime, satellites, selectedSatelliteId]);
+  }, [globeCenterLat, globeCenterLon, globeZoom, isRotating, isPlaying, simTime, satellites, selectedSatelliteId, showSatellites]);
 
   const pointerPosition = (e) => {
     const rect = containerRef.current?.getBoundingClientRect();
@@ -666,64 +673,68 @@ export default function Earth3DViewer({
       <canvas ref={canvasRef} className="block w-full h-full" />
 
       {/* Floating HUD controls */}
-      <div className="earth-controls absolute top-3 right-3 flex flex-col gap-1.5 z-10">
-        <button
-          onClick={resetCamera}
-          title="Сброс камеры (ЦУП Восточный)"
-          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
-        >
-          <Compass className="w-4 h-4" />
-        </button>
-        <button 
-          onClick={() => setGlobeZoom(z => Math.min(2.5, z + 0.15))}
-          title="Приблизить"
-          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
-        >
-          <ZoomIn className="w-4 h-4" />
-        </button>
-        <button 
-          onClick={() => setGlobeZoom(z => Math.max(0.65, z - 0.15))}
-          title="Отдалить"
-          className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
-        >
-          <ZoomOut className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => setIsRotating(r => !r)}
-          title={isRotating ? "Остановить авто-вращение" : "Включить авто-вращение"}
-          className={`p-1.5 rounded-md border transition ${isRotating ? 'bg-orbit-blue/20 text-orbit-blue border-orbit-blue/50' : 'bg-space-900/80 text-slate-400 border-slate-700/60'}`}
-        >
-          <RotateCw className="w-4 h-4" />
-        </button>
-      </div>
+      {showControls && (
+        <div className="earth-controls absolute top-3 right-3 flex flex-col gap-1.5 z-10">
+          <button
+            onClick={resetCamera}
+            title="Сброс камеры (ЦУП Восточный)"
+            className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
+          >
+            <Compass className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => setGlobeZoom(z => Math.min(2.5, z + 0.15))}
+            title="Приблизить"
+            className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
+          >
+            <ZoomIn className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => setGlobeZoom(z => Math.max(0.65, z - 0.15))}
+            title="Отдалить"
+            className="p-1.5 rounded-md bg-space-900/80 hover:bg-space-800 text-slate-300 hover:text-orbit-blue border border-slate-700/60 transition"
+          >
+            <ZoomOut className="w-4 h-4" />
+          </button>
+          <button
+            onClick={() => setIsRotating(r => !r)}
+            title={isRotating ? "Остановить авто-вращение" : "Включить авто-вращение"}
+            className={`p-1.5 rounded-md border transition ${isRotating ? 'bg-orbit-blue/20 text-orbit-blue border-orbit-blue/50' : 'bg-space-900/80 text-slate-400 border-slate-700/60'}`}
+          >
+            <RotateCw className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* Mini Legend Overlay */}
-      <div className="earth-legend absolute bottom-3 left-3 flex items-center gap-3 px-2.5 py-1.5 rounded-md bg-space-900/90 border border-slate-700 text-[10px] text-slate-300 font-mono pointer-events-none z-10 backdrop-blur-sm">
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#007AFF] ring-1 ring-white/50" />
-          <span>P1</span>
+      {showLegend && (
+        <div className="earth-legend absolute bottom-3 left-3 flex items-center gap-3 px-2.5 py-1.5 rounded-md bg-space-900/90 border border-slate-700 text-[10px] text-slate-300 font-mono pointer-events-none z-10 backdrop-blur-sm">
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-[#007AFF] ring-1 ring-white/50" />
+            <span>P1</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-[#AAAAAA] ring-1 ring-white/50" />
+            <span>P2</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-[#30D158] ring-1 ring-white/50" />
+            <span>P3</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-2 rounded-full bg-[#FF9F0A] ring-1 ring-white/50" />
+            <span>P4</span>
+          </div>
+          <div className="flex items-center gap-1 pl-1 border-l border-slate-700">
+            <span className="text-[#FF453A] font-bold">✕</span>
+            <span>Отказ</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="w-2 h-0.5 bg-[#007AFF]" />
+            <span>Сброс</span>
+          </div>
         </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#AAAAAA] ring-1 ring-white/50" />
-          <span>P2</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#30D158] ring-1 ring-white/50" />
-          <span>P3</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-2 rounded-full bg-[#FF9F0A] ring-1 ring-white/50" />
-          <span>P4</span>
-        </div>
-        <div className="flex items-center gap-1 pl-1 border-l border-slate-700">
-          <span className="text-[#FF453A] font-bold">✕</span>
-          <span>Отказ</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <span className="w-2 h-0.5 bg-[#007AFF]" />
-          <span>Сброс</span>
-        </div>
-      </div>
+      )}
     </div>
   );
 }

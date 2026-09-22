@@ -397,7 +397,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .settings-sheet__header, .settings-sheet__body { padding: 20px; }
   .settings-sheet__footer { padding: 14px 20px calc(14px + var(--safe-bottom)); }
 
-  .mission-shell { background: #0B0B0D; touch-action: none; }
+  .mission-shell { background: #0B0B0D; touch-action: manipulation; }
   .mission-topbar, .mission-sidebar { display: none; }
   .mission-mobile-head { flex: 0 0 auto; display: block; z-index: 50; border-bottom: 1px solid var(--line); background: rgba(18, 18, 20, 0.96); }
   .mission-mobile-head__title { min-height: 58px; padding: 8px 10px; display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; gap: 9px; }
@@ -441,8 +441,30 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .secondary-workspace { padding: 8px; overflow: auto; }
   .secondary-workspace--compare { overflow: hidden; padding: 0; }
   .compare-inline .compare-modal { max-height: none !important; border: 0 !important; border-radius: 0 !important; box-shadow: none; }
-  .satellite-inspector { top: auto !important; left: 8px; right: 8px !important; bottom: 8px; width: auto; max-width: none; max-height: calc(100% - 16px); border-radius: 4px; }
-  .satellite-inspector__body { max-height: min(62dvh, 520px) !important; }
+  .satellite-inspector {
+    top: auto !important;
+    left: 8px !important;
+    right: 8px !important;
+    bottom: calc(72px + var(--safe-bottom)) !important;
+    width: auto !important;
+    max-width: 480px !important;
+    margin-inline: auto !important;
+    max-height: min(72dvh, calc(100dvh - 145px)) !important;
+    border-radius: 12px !important;
+    z-index: 70 !important;
+    touch-action: pan-y !important;
+    pointer-events: auto !important;
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.12) !important;
+  }
+  .satellite-inspector__body {
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    overscroll-behavior: contain !important;
+    touch-action: pan-y !important;
+  }
   .app-modal-layer { align-items: flex-end !important; padding: 0 !important; }
   .app-modal-layer > .app-modal-card { width: 100% !important; max-width: none !important; max-height: 92dvh !important; border-inline: 0 !important; border-bottom: 0 !important; border-radius: 4px 4px 0 0 !important; overflow-y: auto !important; padding-bottom: var(--safe-bottom); }
   .secondary-workspace .app-modal-card { min-width: 0; }

@@ -90,8 +90,13 @@ export default function SatelliteInspector({
   const actionInfo = getActionBadge();
 
   return (
-    <div className="satellite-inspector fixed top-16 right-4 bg-space-900/95 border border-slate-700/80 rounded-xl shadow-2xl z-40 backdrop-blur-xl flex flex-col font-mono text-xs overflow-hidden animate-in fade-in slide-in-from-right duration-200">
-      
+    <div 
+      className="satellite-inspector fixed top-16 right-4 bg-space-900/95 border border-slate-700/80 rounded-xl shadow-2xl z-40 backdrop-blur-xl flex flex-col font-mono text-xs overflow-hidden animate-in fade-in slide-in-from-right duration-200"
+      style={{ touchAction: 'pan-y' }}
+    >
+      {/* Mobile handle indicator */}
+      <div className="w-10 h-1 rounded-full bg-slate-600/50 mx-auto my-1.5 md:hidden" aria-hidden="true" />
+
       {/* 1. Header Ribbon */}
       <div className="p-3 border-b border-subtle bg-space-850/90 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -110,7 +115,7 @@ export default function SatelliteInspector({
 
         <button
           onClick={onClose}
-          className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
+          className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-colors"
           title="Закрыть инспектор"
         >
           <X className="w-4 h-4" />
@@ -118,7 +123,10 @@ export default function SatelliteInspector({
       </div>
 
       {/* 2. Main Body */}
-      <div className="satellite-inspector__body p-3.5 space-y-3 max-h-[calc(100vh-120px)] overflow-y-auto">
+      <div 
+        className="satellite-inspector__body flex-1 min-h-0 p-3.5 space-y-3 max-h-[calc(100vh-120px)] overflow-y-auto"
+        style={{ touchAction: 'pan-y', WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}
+      >
         
         {/* Current Operation */}
         <div className={`p-2.5 rounded-lg border flex flex-col gap-1 ${actionInfo.badge}`}>

@@ -29,15 +29,6 @@ export default function HeroEntrance({ scenarios, onLaunch, onOpenEditor }) {
   const [isWarping, setIsWarping] = useState(false);
 
   const selectedScenario = scenarios.find((scenario) => scenario.id === selectedScenarioId) || defaultScenario;
-  const dummySatellites = useMemo(
-    () => Array.from({ length: selectedScenario?.satellite_count || 48 }).map((_, index) => ({
-      id: `S${String(index + 1).padStart(2, '0')}`,
-      available: true,
-      current_action: index % 8 === 0 ? 'downlink' : index % 5 === 0 ? 'relay' : index % 12 === 0 ? 'calibrate' : 'idle',
-      soc_pct: 75
-    })),
-    [selectedScenario?.satellite_count]
-  );
 
   const handleLaunchClick = () => {
     if (isWarping) return;
@@ -135,7 +126,10 @@ export default function HeroEntrance({ scenarios, onLaunch, onOpenEditor }) {
 
         <section className="hero-orbit" aria-label="Интерактивная модель группировки">
           <Earth3DViewer
-            satellites={dummySatellites}
+            satellites={[]}
+            showSatellites={false}
+            showLegend={false}
+            showControls={false}
             simTime={3600}
             isPlaying
             autoRotate
