@@ -4,7 +4,7 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /build
 
 COPY frontend/package*.json ./
-RUN npm install
+RUN npm ci
 
 COPY frontend/ ./
 RUN npm run build
@@ -16,17 +16,16 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Install python dependencies
 COPY backend/requirements.txt ./backend/
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
-# Copy backend application and CaseInfo1 models/data
 COPY backend/ ./backend/
 COPY CaseInfo1/ ./CaseInfo1/
-
-# Copy built frontend assets
 COPY --from=frontend-builder /build/dist ./frontend/dist
 
-EXPOSE 8010
+EXPOSE 10000
 
-CMD ["python", "-m", "uvicorn", "app.main:app", "--app-dir", "backend", "--host", "0.0.0.0", "--port", "8010"]
+HEALTHCHECK --interval=20s --timeout=5s --start-period=15s --retries=3 \
+    CMD python -c "import os, urllib.request; urllib.request.urlopen('http://127.0.0.1:' + os.getenv('PORT', '10000') + '/api/health', timeout=4)" || exit 1
+
+CMD ["sh", "-c", "python -m uvicorn app.main:app --app-dir backend --host 0.0.0.0 --port ${PORT:-10000}"]
