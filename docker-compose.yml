@@ -11,6 +11,7 @@ services:
       - "8010:8010"
     environment:
       - PYTHONUNBUFFERED=1
+      - PORT=8010
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8010/api/health')"]
       interval: 10s
